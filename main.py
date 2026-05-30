@@ -1,6 +1,8 @@
 import json
 import logging
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Optional, Any, Dict, List
 from fastmcp import FastMCP
 from config.logging_config import get_logger
@@ -23,6 +25,37 @@ metrics = {
     "failed_requests": 0,
     "start_time": time.time(),
 }
+
+BASE_DIR = Path(__file__).resolve().parent
+PROMPTS_DIR = BASE_DIR / "prompts"
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert MongoDB and datetime values into JSON-safe values."""
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    try:
+        from bson.objectid import ObjectId
+
+        if isinstance(value, ObjectId):
+            return str(value)
+    except Exception:
+        pass
+    return value
+
+
+def load_prompt_text(prompt_name: str) -> str:
+    """Load a prompt file from the local prompts directory."""
+    prompt_path = PROMPTS_DIR / prompt_name
+
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_name}")
+
+    return prompt_path.read_text(encoding="utf-8")
 
 
 def check_rate_limit(client_id: str = "default") -> bool:
@@ -107,6 +140,71 @@ def database_status() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Database status failed: {e}")
         return {"status": "unhealthy", "error": str(e)}
+
+
+@mcp.tool()
+def get_prompted_contests(
+    prompt_name: str = "Prompts-backfill.txt",
+    batch_size: int = 10,
+    skip: int = 0,
+) -> Dict[str, Any]:
+    """
+    Return the prompt text together with contest documents for AI processing.
+
+    Use this when Claude or ChatGPT needs both the instructions and the raw
+    MongoDB contests in a single response so it can normalize them locally.
+    """
+    client_id = "get_prompted_contests"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        logger.info(
+            f"Building prompted contest bundle from {prompt_name} "
+            f"(batch_size={batch_size}, skip={skip})"
+        )
+
+        prompt_text = load_prompt_text(prompt_name)
+        contest_result = ContestMigration.get_contests_needing_migration(
+            batch_size=min(int(batch_size), 100),
+            skip=max(int(skip), 0),
+        )
+
+        if not contest_result.get("success"):
+            update_metrics(False)
+            return contest_result
+
+        contests = _json_safe(contest_result.get("contests", []))
+
+        result = {
+            "success": True,
+            "prompt_name": prompt_name,
+            "prompt_text": prompt_text,
+            "contest_count": len(contests),
+            "total_needing_migration": contest_result.get("total_needing_migration", 0),
+            "skip": contest_result.get("skip", skip),
+            "batch_size": contest_result.get("batch_size", batch_size),
+            "contests": contests,
+            "usage": {
+                "purpose": "Send prompt_text and contests to your LLM, then apply the returned JSON patches with apply_migration_patch or bulk_apply_migrations.",
+                "expected_llm_output": "A JSON patch per contest, containing only fields that need updates.",
+            },
+        }
+
+        update_metrics(True)
+        return result
+
+    except FileNotFoundError as e:
+        logger.error(f"Prompt file error: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        logger.error(f"Error in get_prompted_contests: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
 
 
 # ==================== READ OPERATIONS ====================
