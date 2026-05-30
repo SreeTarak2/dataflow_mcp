@@ -4,7 +4,6 @@ import time
 from typing import Optional, Any, Dict, List
 from fastmcp import FastMCP
 from config.logging_config import get_logger
-from config.mongodb import ping_database
 from config.security import RateLimiter, ValidationError
 from tools.data_manager import DataManager
 from tools.contest_migration import ContestMigration
@@ -48,7 +47,7 @@ def update_metrics(success: bool):
 @mcp.tool()
 def health_check() -> Dict[str, Any]:
     """
-    Check the health status of the MCP server and MongoDB connection.
+    Check the health status of the MCP server process.
     
     Returns:
         Dictionary with health status and metrics
@@ -57,15 +56,10 @@ def health_check() -> Dict[str, Any]:
         logger.info("Health check requested")
         
         uptime = time.time() - metrics["start_time"]
-        mongo_ready, mongo_error = ping_database()
         
         health_data = {
-            "status": "healthy" if mongo_ready else "degraded",
+            "status": "healthy",
             "uptime_seconds": round(uptime, 2),
-            "mongodb": {
-                "connected": mongo_ready,
-                "error": mongo_error,
-            },
             "metrics": {
                 "total_requests": metrics["total_requests"],
                 "successful_requests": metrics["successful_requests"],
@@ -85,6 +79,33 @@ def health_check() -> Dict[str, Any]:
         
     except Exception as e:
         logger.error(f"Health check failed: {e}")
+        return {"status": "unhealthy", "error": str(e)}
+
+
+@mcp.tool()
+def database_status() -> Dict[str, Any]:
+    """
+    Check MongoDB connectivity separately from server health.
+    
+    Returns:
+        Database connection status and any connection error message
+    """
+    try:
+        logger.info("Database status requested")
+        
+        from config.mongodb import ping_database
+
+        mongo_ready, mongo_error = ping_database()
+        return {
+            "status": "healthy" if mongo_ready else "degraded",
+            "mongodb": {
+                "connected": mongo_ready,
+                "error": mongo_error,
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Database status failed: {e}")
         return {"status": "unhealthy", "error": str(e)}
 
 
