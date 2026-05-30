@@ -71,6 +71,8 @@ OUTPUT SCHEMA (ONLY include fields that need updating)
   "skillLevelSource": "..."
 }
 
+  NOTE: If you rewrite the contest `description`, include the updated `description` field in the patch JSON. The patch must contain the rewritten 1–3 sentence description only when it differs from the stored value; otherwise omit the `description` key entirely.
+
 ==================================================
 FIELD-BY-FIELD RULES
 ==================================================

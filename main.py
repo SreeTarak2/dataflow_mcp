@@ -9,6 +9,8 @@ from config.logging_config import get_logger
 from config.security import RateLimiter, ValidationError
 from tools.data_manager import DataManager
 from tools.contest_migration import ContestMigration
+import urllib.request
+from urllib.error import URLError, HTTPError
 
 logger = get_logger(__name__)
 
@@ -56,6 +58,78 @@ def load_prompt_text(prompt_name: str) -> str:
         raise FileNotFoundError(f"Prompt file not found: {prompt_name}")
 
     return prompt_path.read_text(encoding="utf-8")
+
+
+def _clean_text(value: Any, fallback: str = "Not specified") -> str:
+    """Convert a value into a compact single-line string."""
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        cleaned = " ".join(value.strip().split())
+        return cleaned if cleaned else fallback
+    if isinstance(value, list):
+        items = [str(item).strip() for item in value if str(item).strip()]
+        return ", ".join(items) if items else fallback
+    return str(value)
+
+
+def _infer_theme(contest: Dict[str, Any]) -> str:
+    """Infer a visual theme from contest fields with conservative fallback."""
+    tags = [str(tag).lower() for tag in contest.get("tags", []) if isinstance(tag, str)]
+    category = str(contest.get("canonicalCategory") or contest.get("rawCategory") or "").lower()
+    description = str(contest.get("description") or "").lower()
+    combined = " ".join(tags + [category, description])
+
+    if any(key in combined for key in ["human-rights", "rights", "equity", "justice"]):
+        return "Human Rights"
+    if any(key in combined for key in ["climate", "sustainability", "environment"]):
+        return "Sustainability"
+    if any(key in combined for key in ["ai", "technology", "hackathon", "innovation"]):
+        return "Technology"
+    if any(key in combined for key in ["education", "student", "learning", "scholarship"]):
+        return "Education"
+    if any(key in combined for key in ["startup", "entrepreneur", "pitch"]):
+        return "Entrepreneurship"
+    if any(key in combined for key in ["research", "science", "lab"]):
+        return "Research"
+    if any(key in combined for key in ["leadership", "community", "social-impact"]):
+        return "Leadership"
+    if any(key in combined for key in ["art", "design", "creative", "film", "music"]):
+        return "Creativity"
+    return "Innovation"
+
+
+def _build_cover_image_prompt(contest: Dict[str, Any]) -> str:
+    """Generate an image-generation prompt for a missing contest banner."""
+    title = _clean_text(contest.get("title"), "Untitled Opportunity")
+    source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
+    organizer = _clean_text(source.get("name"), "Organizer not specified")
+    category = _clean_text(
+        contest.get("canonicalCategory") or contest.get("rawCategory"),
+        "Open / Multidisciplinary",
+    )
+    description = _clean_text(contest.get("description"))
+
+    audience = contest.get("audience", {}) if isinstance(contest.get("audience"), dict) else {}
+    eligibility = _clean_text(audience.get("eligibilityLabel"), "Open to eligible applicants")
+
+    prize = contest.get("prize", {}) if isinstance(contest.get("prize"), dict) else {}
+    prize_summary = _clean_text(prize.get("prizeSummary"), "Benefits not specified")
+
+    theme = _infer_theme(contest)
+
+    return (
+        f"Create a premium wide landscape cover banner for '{title}'. "
+        f"The scene should visually represent {theme} through powerful symbolic imagery. "
+        f"Include visual cues for {category}, eligibility context ({eligibility}), "
+        f"and the organizer mission of {organizer}. "
+        f"Ground the composition in this contest context: {description}. "
+        f"Benefits cue: {prize_summary}. "
+        "Use a modern international editorial design language, cinematic lighting, rich details, "
+        "sophisticated composition, diverse representation where appropriate, professional negative "
+        "space for text overlays, high-end conference poster aesthetics, ultra sharp 8k detail, "
+        "website hero-banner quality, no watermarks, no logos, no stock-photo look, no clutter."
+    )
 
 
 def check_rate_limit(client_id: str = "default") -> bool:
@@ -205,6 +279,252 @@ def get_prompted_contests(
         logger.error(f"Error in get_prompted_contests: {e}")
         update_metrics(False)
         return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def get_contests_missing_images(
+    batch_size: int = 10,
+    skip: int = 0,
+) -> Dict[str, Any]:
+    """
+    Fetch contests where the primary image URL is missing or empty.
+
+    Use this to identify documents that need AI-generated replacement banners.
+    """
+    client_id = "get_contests_missing_images"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        filter_dict = {
+            "$or": [
+                {"image": {"$exists": False}},
+                {"image": None},
+                {"image.primary": {"$exists": False}},
+                {"image.primary": None},
+                {"image.primary.url": {"$exists": False}},
+                {"image.primary.url": None},
+                {"image.primary.url": ""},
+            ]
+        }
+
+        result = DataManager.read_data(
+            collection_name="Contests",
+            filter_query=filter_dict,
+            limit=min(max(int(batch_size), 1), 100),
+            skip=max(int(skip), 0),
+        )
+
+        if not result.get("success"):
+            update_metrics(False)
+            return result
+
+        data = result.get("data", [])
+        update_metrics(True)
+        return {
+            "success": True,
+            "count": len(data),
+            "total": result.get("total", 0),
+            "skip": result.get("skip", skip),
+            "limit": result.get("limit", batch_size),
+            "contests": _json_safe(data),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in get_contests_missing_images: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def get_contests_with_broken_images(
+    batch_size: int = 10,
+    skip: int = 0,
+) -> Dict[str, Any]:
+    """
+    Fetch contests whose image.primary.status is marked as 'broken'.
+
+    Returns the contests so the chatbot can display or re-generate banners.
+    """
+    client_id = "get_contests_with_broken_images"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        filter_dict = {"image.primary.status": "broken"}
+
+        result = DataManager.read_data(
+            collection_name="Contests",
+            filter_query=filter_dict,
+            limit=min(max(int(batch_size), 1), 500),
+            skip=max(int(skip), 0),
+        )
+
+        if not result.get("success"):
+            update_metrics(False)
+            return result
+
+        data = result.get("data", [])
+        update_metrics(True)
+        return {
+            "success": True,
+            "count": len(data),
+            "total": result.get("total", 0),
+            "skip": result.get("skip", skip),
+            "limit": result.get("limit", batch_size),
+            "contests": _json_safe(data),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in get_contests_with_broken_images: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def generate_cover_prompt_for_contest(contest_id: str) -> Dict[str, Any]:
+    """
+    Generate a premium image-generation prompt for one contest by ID.
+
+    This returns a single prompt string that can be fed into any image model
+    when the original contest banner is missing.
+    """
+    client_id = "generate_cover_prompt_for_contest"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        doc_result = DataManager.get_document("Contests", contest_id)
+        if not doc_result.get("success"):
+            update_metrics(False)
+            return doc_result
+
+        contest = doc_result.get("data", {})
+        prompt = _build_cover_image_prompt(contest)
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "contest_id": contest_id,
+            "title": contest.get("title"),
+            "image_prompt": prompt,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in generate_cover_prompt_for_contest: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def verify_image_urls(
+    batch_size: int = 50,
+    skip: int = 0,
+    user_agent: str = "DataFlow-MCP/1.0",
+) -> Dict[str, Any]:
+    """
+    Verify image URLs for contests and mark broken images in the database.
+
+    This tool scans contests that have an `image.primary.url`, performs a
+    lightweight HTTP HEAD/GET to verify reachability, and updates
+    `image.primary.status` to 'active' or 'broken'. It returns a report.
+    """
+    client_id = "verify_image_urls"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        # Fetch contests that include an image URL
+        filter_query = {"image.primary.url": {"$exists": True, "$ne": None, "$ne": ""}}
+        result = DataManager.read_data(
+            collection_name="Contests",
+            filter_query=filter_query,
+            limit=min(max(int(batch_size), 1), 500),
+            skip=max(int(skip), 0),
+        )
+
+        if not result.get("success"):
+            update_metrics(False)
+            return result
+
+        contests = result.get("data", [])
+        report = {"checked": 0, "active": 0, "broken": 0, "details": []}
+
+        for contest in contests:
+            report["checked"] += 1
+            contest_id = contest.get("_id")
+            url = None
+            try:
+                image = contest.get("image") or {}
+                primary = image.get("primary") if isinstance(image, dict) else None
+                url = primary.get("url") if isinstance(primary, dict) else None
+            except Exception:
+                url = None
+
+            if not url:
+                report["details"].append({"contest_id": contest_id, "status": "no-url"})
+                continue
+
+            # Attempt a HEAD request first; fall back to GET
+            req = urllib.request.Request(url, headers={"User-Agent": user_agent}, method="HEAD")
+            status_ok = False
+            try:
+                with urllib.request.urlopen(req, timeout=6) as resp:
+                    if resp.status == 200:
+                        status_ok = True
+            except HTTPError as e:
+                # Non-200 status codes
+                status_ok = False
+            except URLError:
+                status_ok = False
+            except Exception:
+                status_ok = False
+
+            # If HEAD failed, try GET as some servers don't support HEAD
+            if not status_ok:
+                try:
+                    req2 = urllib.request.Request(url, headers={"User-Agent": user_agent}, method="GET")
+                    with urllib.request.urlopen(req2, timeout=6) as resp2:
+                        if resp2.status == 200:
+                            status_ok = True
+                except Exception:
+                    status_ok = False
+
+            # Update document with status
+            update_data = {"image": {"primary": {"url": url, "status": ("active" if status_ok else "broken")}}}
+            try:
+                # Use DataManager.update_document to safely validate and update
+                update_result = DataManager.update_document("Contests", contest_id, update_data)
+                if update_result.get("success"):
+                    if status_ok:
+                        report["active"] += 1
+                    else:
+                        report["broken"] += 1
+                    report["details"].append({"contest_id": contest_id, "url": url, "status": ("active" if status_ok else "broken")})
+                else:
+                    report["details"].append({"contest_id": contest_id, "url": url, "status": "update-failed", "error": update_result.get("error")})
+            except Exception as e:
+                report["details"].append({"contest_id": contest_id, "url": url, "status": "update-exception", "error": str(e)})
+
+        update_metrics(True)
+        return {"success": True, "report": report}
+
+    except Exception as e:
+        logger.error(f"Error in verify_image_urls: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
 
 
 # ==================== READ OPERATIONS ====================
