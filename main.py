@@ -201,6 +201,22 @@ def _build_broken_image_card(contest: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _build_formatted_broken_image_card(card: Dict[str, Any], contest: Dict[str, Any]) -> str:
+    """Return the exact text block format requested for chatbot display."""
+    source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
+    source_name = _clean_text(source.get("name"), "Not specified")
+
+    return (
+        f"Title: {card.get('title', 'Untitled Opportunity')}\n"
+        f"Category: {card.get('category', 'Open / Multidisciplinary')}\n"
+        f"Status: {card.get('status', 'Unknown')}\n"
+        f"Prize: {card.get('prize', 'Not specified')}\n"
+        f"Deadline: {card.get('deadline', 'Not specified')}\n"
+        f"Eligibility: {card.get('eligibility', 'Not specified')}\n"
+        f"Link: {source_name}"
+    )
+
+
 def check_rate_limit(client_id: str = "default") -> bool:
     """Check if request is allowed by rate limiter."""
     if not rate_limiter.is_allowed(client_id):
@@ -441,6 +457,10 @@ def get_contests_with_broken_images(
 
         data = result.get("data", [])
         cards = [_build_broken_image_card(contest) for contest in data]
+        formatted_cards = [
+            _build_formatted_broken_image_card(card, contest)
+            for card, contest in zip(cards, data)
+        ]
         update_metrics(True)
         return {
             "success": True,
@@ -449,6 +469,7 @@ def get_contests_with_broken_images(
             "skip": result.get("skip", skip),
             "limit": result.get("limit", batch_size),
             "contest_cards": cards,
+            "formatted_cards": formatted_cards,
             "contests": _json_safe(data),
         }
 
