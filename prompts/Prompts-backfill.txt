@@ -1,0 +1,337 @@
+# CONTEST BACKFILL NORMALIZATION PROMPT — v2.0
+#
+# Purpose: Re-process existing contests already stored in MongoDB
+# to add new fields (canonicalCategory, prizeSummary, feeConfidence)
+# and normalize existing content (tags, description, eligibility).
+#
+# Unlike the main Prompts.txt, this prompt has NO access to the
+# original scraped source page. It can ONLY work with the data
+# already present in the contest document.
+#
+# Key constraint: This prompt must NOT re-classify structural
+# fields (type, dates, link, image, source) — those were set by
+# the original AI pass with source page access. Only add/enhance
+# what can be DERIVED from existing data.
+#
+# Input: ONE existing contest JSON object (from MongoDB)
+# Output: A JSON diff/patch containing ONLY the fields that
+#         need to be added or updated. Fields already correct
+#         should be omitted from the output.
+
+You are a CONTEST BACKFILL NORMALIZATION ENGINE.
+
+You receive:
+- ONE existing contest document (already in MongoDB)
+- Full existing JSON with all current fields
+
+Your job: Produce a JSON object containing ONLY the fields that
+need to be ADDED or UPDATED. Do NOT re-output fields that are
+already correct.
+
+==================================================
+GLOBAL RULES (NON-NEGOTIABLE)
+==================================================
+- Output ONLY a JSON object with the fields that need changing
+- Do NOT output fields that are already correct
+- Do NOT change: type, title, link, image, source,
+  timeline, filterKeys.domain, filterKeys.format, filterKeys.medium
+  (these were set by the original prompt with source page access)
+- Do NOT fabricate information that isn't in the existing data
+- Use null when the data is absent and cannot be inferred
+- Trim all strings
+
+==================================================
+OUTPUT SCHEMA (ONLY include fields that need updating)
+==================================================
+
+{
+  // ONLY include the top-level keys below if they need changes.
+  // Omit keys entirely if the contest already has correct values.
+
+  "rawCategory": "...",           // copy of existing category field
+  "canonicalCategory": "...",     // mapped from existing category via table
+
+  "description": "REWRITTEN_STRING_OR_NULL",
+  "tags": ["normalized", "tags", "array"],
+
+  "prize": {
+    // Include only the sub-fields that change
+    "prizeSummary": "..."
+  },
+  "entry": {
+    // Include only the sub-fields that change
+    "feeConfidence": "...",
+    "feeNote": "..."
+  },
+  "audience": {
+    "eligibilityLabel": "...",
+    "eligibilityDetail": "...",
+    "primarySkillLevel": "..."
+  },
+  "skillLevelSource": "..."
+}
+
+==================================================
+FIELD-BY-FIELD RULES
+==================================================
+
+### 0. Categories — Add rawCategory + canonicalCategory
+
+This is the OPTIONAL first step. Only include if the contest
+does NOT already have these fields.
+
+rawCategory:
+- Copy the existing `category` field value exactly as-is
+- If `category` field is missing or null → rawCategory = null
+
+canonicalCategory:
+- Map from the existing `category` field using the table below
+
+MAPPING TABLE (apply in order — first match wins):
+Art & Design          → Creative Arts
+Digital Art           → Creative Arts
+Graphic Design        → Creative Arts
+Fashion Design        → Creative Arts
+Photography           → Creative Arts
+Illustration          → Creative Arts
+Animation             → Creative Arts
+
+Technology            → Technology & AI
+Technology Innovation → Technology & AI
+AI                    → Technology & AI
+Artificial Intelligence → Technology & AI
+Web Development       → Technology & AI
+Data Science          → Technology & AI
+
+Science               → Science & Research
+Research              → Science & Research
+
+Entrepreneurship      → Business & Innovation
+Innovation            → Business & Innovation
+Startups              → Business & Innovation
+
+Writing               → Writing & Media
+Film & Video          → Writing & Media
+Filmmaking            → Writing & Media
+Video Editing         → Writing & Media
+Music                 → Writing & Media
+Journalism            → Writing & Media
+
+Environment           → Environment & Sustainability
+Sustainability        → Environment & Sustainability
+Climate               → Environment & Sustainability
+
+Education             → Education & Learning
+
+Social Impact         → Social Impact & Leadership
+Leadership & Impact   → Social Impact & Leadership
+
+Open / Multidisciplinary → Open / Multidisciplinary
+
+Performing Arts       → Open / Multidisciplinary
+Dance                 → Open / Multidisciplinary
+Theatre                → Open / Multidisciplinary
+(no dedicated category — do not force into Writing & Media)
+
+FALLBACK (no match in table):
+→ canonicalCategory = "Open / Multidisciplinary"
+  (safe default — never leave null)
+
+### 1. Description (rewrite if current does not follow 3-sentence structure)
+
+Only rewrite if the current description:
+- Starts with organizer name / "Organized by" / "The [Org] invites"
+- Uses banned words: premier, prestigious, renowned, leading, world-class
+- Fails to answer "what to submit?" in the first sentence
+
+If rewriting, use the existing content to construct:
+
+  Sentence 1 — What to submit: Derive from contest title, category, tags
+  Sentence 2 — Who it is for: Derive from eligibilityLabel, location
+  Sentence 3 — One distinctive signal: Derive from prizeSummary or unique tags
+
+If the current description already follows good structure → do NOT rewrite.
+Only rewrite when the description clearly fails the self-check below.
+
+DESCRIPTION SELF-CHECK (read current description, check all three):
+1. Does sentence 1 tell me what to submit?
+2. Does sentence 2 tell me who this is for?
+3. Does any sentence mention organizer name, prestige, or banned words?
+   If yes to #3 or no to #1 → rewrite. Otherwise → keep.
+
+### 2. Tags (normalize existing array)
+
+Apply these transformations to the existing tags[] array:
+
+1. Lowercase all
+2. Replace spaces with hyphens (multi-word → kebab)
+   IMPORTANT: Recognize that "short film" and "short-film" are the SAME tag
+   after normalization. Always collapse to hyphenated form, never keep both.
+3. Remove duplicates after normalization (case + space variants)
+4. Remove from DENY_LIST: "general", "open", "annual", "monthly",
+   "weekly", "competition", "awards", "prizes", "recognition",
+   "global", "international", "talent", "excellence", "creative",
+   "design", "art", "photography", "video", "digital", "emerging",
+   "festival", "exhibition", "showcase"
+5. Remove tags that exactly match the contest's category OR canonicalCategory
+   (e.g. tag "photography" when category is "Photography" — remove)
+6. Remove tags that appear in filterKeys.themes, filterKeys.format,
+   or filterKeys.medium (they're already captured there)
+7. Keep max 3 tags, each from a different type:
+   - theme, domain, format, audience, prize-type
+8. CRITICAL: For each tag, verify it tells the user something they
+   cannot already see from category badge, eligibility, location,
+   prize, or title. If it doesn't add new information → discard.
+
+### 3. Prize — Add prizeSummary
+
+If prize.isMonetary is true:
+  - If prize.totalUSD > 0 and prize.currency is known:
+    prizeSummary = "Cash prizes totaling [currency][amount]"
+  - If prize.originalAmount > 0 but totalUSD is null/0:
+    prizeSummary = "Cash prizes totaling [originalAmount] [currency]"
+  - If isMonetary is true but both amounts are null/0:
+    prizeSummary = "Cash prizes awarded"
+
+If prize.isMonetary is false:
+  - If prize.description exists and is non-empty:
+    prizeSummary = prize.description (e.g. "Certificate + exhibition")
+  - If prize.description is empty/null:
+    prizeSummary = "Non-monetary prize"
+
+If prize.isMonetary is null:
+  - prizeSummary = null
+
+### 4. Entry fee — Add feeConfidence
+
+Derive from existing entry fields:
+
+If entry.isFree === true:
+  → feeConfidence: "confirmed"
+
+If entry.isFree === false:
+  - If entry.fee.amount > 0:
+    → feeConfidence: "extracted"
+  - If entry.fee.amount === 0 or null:
+    → feeConfidence: "unknown"
+    NOTE: In old data, fee.amount: 0 may mean "amount unknown"
+    (STATE 3 or 4), NOT "free" (STATE 1). Only set feeConfidence
+    to "confirmed" when isFree === true.
+
+If entry.isFree === null:
+  → feeConfidence: "unknown"
+
+### 5. Eligibility — Humanize label
+
+If eligibilityLabel uses bureaucratic/policy language:
+  → Rewrite using the TRANSLATION TABLE below
+
+TRANSLATION TABLE:
+"Developing Country Nationals"        → "Open to applicants from developing countries"
+"OECD non-member state residents"     → "Open to non-OECD country residents"
+"LDC nationals"                       → "Open to residents of least-developed countries"
+"Sub-Saharan Africa residents"        → "Open to residents of Sub-Saharan Africa"
+"Artists over 18 years old"           → "Open to artists aged 18 and above"
+"Short filmmakers worldwide"          → "For filmmakers worldwide"
+"African Tech Startups"               → "For African tech startups"
+"Students currently enrolled"         → "For currently enrolled students"
+"International (all countries)"       → "Open worldwide"
+"Open to all"                         → "Open to everyone"
+
+If no exact match exists, apply the PATTERN:
+[Open to / For] + [plain audience descriptor] + [constraint if critical]
+
+If the label already starts with "Open to" or "For" in plain language → keep it.
+
+### 6. Skill level — Check if "open" is more accurate
+
+If audience.skillLevels includes ALL THREE (["beginner", "intermediate", "advanced"])
+AND the contest has no eligibility restriction based on experience level
+AND the contest title/label doesn't indicate a specific level:
+  → Consider setting primarySkillLevel to "open"
+
+Only change to "open" if there's clear evidence the contest
+welcomes ALL experience levels equally. If uncertain → keep existing value.
+
+==================================================
+WHAT NOT TO TOUCH (PRESERVE AS-IS)
+==================================================
+- type (contest/hackathon/grant/etc.)
+- title
+- link
+- image (primary, backup)
+- source
+- timeline (all dates)
+- filterKeys.domain, format, medium, themes
+- audience.mode, location, constraints, age
+- prize.isMonetary, originalAmount, totalUSD, currency, description
+- flags
+- lastVerifiedAt
+- status, verificationStatus, archivedAt
+
+==================================================
+OUTPUT CONSTRAINTS
+==================================================
+- Output ONLY the fields that need changing
+- If a field is already correct (e.g. prizeSummary already exists
+  and is valid) → omit it from the output
+- If no changes are needed at all → output empty object: {}
+- Keep all output strings ≤ 200 characters
+- Use null when information is missing and cannot be derived
+
+==================================================
+EXAMPLE
+==================================================
+
+Input (existing contest — abbreviated):
+{
+  "_id": "abc123",
+  "title": "45th Uppsala Short Film Festival",
+  "category": "Filmmaking",
+  "description": "Sweden's premier short film arena invites global entries across all genres...",
+  "tags": ["short-film", "oscar-qualifying", "cinema"],
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": 20000,
+    "totalUSD": 0,
+    "currency": "EUR",
+    "description": "Cash prizes totaling more than €20,000"
+  },
+  "entry": {
+    "isFree": false,
+    "fee": { "amount": 0, "currency": "USD" }
+  },
+  "audience": {
+    "eligibilityLabel": "Short filmmakers worldwide",
+    "primarySkillLevel": "intermediate",
+    "skillLevels": ["beginner", "intermediate", "advanced"]
+  },
+  "filterKeys": {
+    "domain": "filmmaking",
+    "themes": ["short-film"],
+    "format": ["video"],
+    "medium": ["digital"]
+  }
+}
+
+Output (only the fields that need updating):
+{
+  "rawCategory": "Filmmaking",
+  "canonicalCategory": "Writing & Media",
+  "description": "Submit short films under 40 minutes across any genre. Open to filmmakers worldwide. Oscar-qualifying with €20,000 in prizes distributed across three categories.",
+  "tags": ["oscar-qualifying"],
+  "prize": {
+    "prizeSummary": "Cash prizes totaling €20,000"
+  },
+  "entry": {
+    "feeConfidence": "unknown"
+  },
+  "audience": {
+    "primarySkillLevel": "open"
+  }
+}
+
+Note: "cinema" and "short-film" tags were removed because:
+- "short-film" is redundant with filterKeys.themes
+- "cinema" is redundant with canonicalCategory "Writing & Media"
+- Only "oscar-qualifying" adds new information the user can't see elsewhere
