@@ -132,6 +132,75 @@ def _build_cover_image_prompt(contest: Dict[str, Any]) -> str:
     )
 
 
+def _parse_iso_datetime(value: Any) -> Optional[datetime]:
+    """Parse ISO datetime strings safely."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    raw = value.strip()
+    try:
+        # Support trailing Z timestamps
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def _format_deadline(deadline_value: Any) -> str:
+    """Convert deadline to a human-friendly label."""
+    dt = _parse_iso_datetime(deadline_value)
+    if not dt:
+        return "Not specified"
+    return dt.strftime("%B %-d, %Y")
+
+
+def _derive_contest_status(contest: Dict[str, Any]) -> str:
+    """Infer contest status from explicit field or submission deadline."""
+    explicit = _clean_text(contest.get("status"), "")
+    if explicit:
+        return explicit
+
+    timeline = contest.get("timeline", {}) if isinstance(contest.get("timeline"), dict) else {}
+    deadline_dt = _parse_iso_datetime(timeline.get("submissionDeadlineUTC"))
+    if not deadline_dt:
+        return "Unknown"
+
+    # Compare in UTC-aware style where possible
+    now = datetime.utcnow().replace(tzinfo=deadline_dt.tzinfo)
+    return "Closed" if deadline_dt < now else "Open"
+
+
+def _build_broken_image_card(contest: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a compact, card-friendly contest summary for chatbot output."""
+    timeline = contest.get("timeline", {}) if isinstance(contest.get("timeline"), dict) else {}
+    audience = contest.get("audience", {}) if isinstance(contest.get("audience"), dict) else {}
+    prize = contest.get("prize", {}) if isinstance(contest.get("prize"), dict) else {}
+    image = contest.get("image", {}) if isinstance(contest.get("image"), dict) else {}
+    primary = image.get("primary", {}) if isinstance(image.get("primary"), dict) else {}
+
+    prize_text = _clean_text(prize.get("prizeSummary"), "Not specified")
+    if prize_text == "Not specified":
+        amount = _clean_text(prize.get("originalAmount"), "")
+        currency = _clean_text(prize.get("currency"), "")
+        if amount:
+            prize_text = f"{amount} {currency}".strip()
+
+    return {
+        "contest_id": contest.get("_id"),
+        "title": _clean_text(contest.get("title"), "Untitled Opportunity"),
+        "category": _clean_text(
+            contest.get("canonicalCategory") or contest.get("rawCategory"),
+            "Open / Multidisciplinary",
+        ),
+        "status": _derive_contest_status(contest),
+        "prize": prize_text,
+        "deadline": _format_deadline(timeline.get("submissionDeadlineUTC")),
+        "eligibility": _clean_text(audience.get("eligibilityLabel"), "Not specified"),
+        "image_url": _clean_text(primary.get("url"), "Not specified"),
+    }
+
+
 def check_rate_limit(client_id: str = "default") -> bool:
     """Check if request is allowed by rate limiter."""
     if not rate_limiter.is_allowed(client_id):
@@ -371,6 +440,7 @@ def get_contests_with_broken_images(
             return result
 
         data = result.get("data", [])
+        cards = [_build_broken_image_card(contest) for contest in data]
         update_metrics(True)
         return {
             "success": True,
@@ -378,6 +448,7 @@ def get_contests_with_broken_images(
             "total": result.get("total", 0),
             "skip": result.get("skip", skip),
             "limit": result.get("limit", batch_size),
+            "contest_cards": cards,
             "contests": _json_safe(data),
         }
 
