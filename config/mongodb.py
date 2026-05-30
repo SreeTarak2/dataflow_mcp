@@ -45,11 +45,19 @@ if os.getenv("MONGO_USE_TLS", "false").lower() == "true":
 
 try:
     client = MongoClient(MONGO_URI, **connection_options)
-    # Test connection
-    client.admin.command("ping")
-    logger.info("✓ MongoDB connection established successfully")
-except (ServerSelectionTimeoutError, ConnectionFailure) as e:
-    logger.error(f"✗ Failed to connect to MongoDB: {e}")
+    logger.info("✓ MongoDB client initialized successfully")
+except Exception as e:
+    logger.error(f"✗ Failed to initialize MongoDB client: {e}")
     raise
 
 db = client[MONGO_DB_NAME]
+
+
+def ping_database() -> tuple[bool, str | None]:
+    """Check whether MongoDB is reachable without failing app startup."""
+    try:
+        client.admin.command("ping")
+        return True, None
+    except (ServerSelectionTimeoutError, ConnectionFailure) as e:
+        logger.warning(f"MongoDB ping failed: {e}")
+        return False, str(e)

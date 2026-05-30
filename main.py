@@ -4,6 +4,7 @@ import time
 from typing import Optional, Any, Dict, List
 from fastmcp import FastMCP
 from config.logging_config import get_logger
+from config.mongodb import ping_database
 from config.security import RateLimiter, ValidationError
 from tools.data_manager import DataManager
 from tools.contest_migration import ContestMigration
@@ -56,10 +57,15 @@ def health_check() -> Dict[str, Any]:
         logger.info("Health check requested")
         
         uptime = time.time() - metrics["start_time"]
+        mongo_ready, mongo_error = ping_database()
         
         health_data = {
-            "status": "healthy",
+            "status": "healthy" if mongo_ready else "degraded",
             "uptime_seconds": round(uptime, 2),
+            "mongodb": {
+                "connected": mongo_ready,
+                "error": mongo_error,
+            },
             "metrics": {
                 "total_requests": metrics["total_requests"],
                 "successful_requests": metrics["successful_requests"],
