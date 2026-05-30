@@ -305,15 +305,6 @@ def delete_document(
         logger.error(f"Error in delete_document: {e}")
         update_metrics(False)
         return {"success": False, "error": "An error occurred"}
-
-
-if __name__ == "__main__":
-    logger.info("=" * 60)
-    logger.info("Starting DataFlow MCP Server")
-    logger.info("=" * 60)
-    mcp.run()
-
-
 # ==================== MIGRATION OPERATIONS ====================
 
 @mcp.tool()
@@ -492,6 +483,13 @@ def bulk_apply_migrations(
         logger.error(f"Error in bulk_apply_migrations: {e}")
         update_metrics(False)
         return {"success": False, "error": "An error occurred"}
+
+
+if __name__ == "__main__":
+    logger.info("=" * 60)
+    logger.info("Starting DataFlow MCP Server")
+    logger.info("=" * 60)
+    mcp.run()
 
 
 if __name__ == "__main__":
