@@ -4,6 +4,7 @@ from bson.objectid import ObjectId
 from pymongo.errors import PyMongoError
 from config.mongodb import db
 from config.security import MongoDBValidator, ValidationError
+from .tag_normalizer import normalize_tags_array
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,14 @@ class DataManager:
         try:
             collection_name = MongoDBValidator.validate_collection_name(collection_name)
             document = MongoDBValidator.validate_document(document)
+
+            # Normalize tags for new documents to prevent noisy tags
+            if isinstance(document, dict) and 'tags' in document:
+                try:
+                    document['tags'] = normalize_tags_array(document.get('tags') or [])
+                except Exception:
+                    # Fail-safe: if normalization fails, keep original tags
+                    pass
             
             collection = db[collection_name]
             result = collection.insert_one(document)
@@ -151,6 +160,13 @@ class DataManager:
         try:
             collection_name = MongoDBValidator.validate_collection_name(collection_name)
             update_data = MongoDBValidator.validate_document(update_data)
+
+            # Normalize tags when documents are updated
+            if isinstance(update_data, dict) and 'tags' in update_data:
+                try:
+                    update_data['tags'] = normalize_tags_array(update_data.get('tags') or [])
+                except Exception:
+                    pass
             
             # Validate and convert document ID
             try:
