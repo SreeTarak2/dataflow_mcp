@@ -41,7 +41,7 @@ FINAL SCHEMA (STRICT)
   },
 
   "rawCategory": "",
-  "canonicalCategory": "",
+  "category": "",
 
   "image": {
     "primary": {
@@ -55,6 +55,7 @@ FINAL SCHEMA (STRICT)
 
   "title": "",
   "description": "",
+  "descriptionDetailed": null,
 
   "link": "",
 
@@ -76,7 +77,7 @@ FINAL SCHEMA (STRICT)
     "totalUSD": null,
     "currency": null,
     "prizeSummary": null,
-    "description": ""
+    "description": null
   },
 
   "audience": {
@@ -166,7 +167,7 @@ rawCategory:
 - Do not normalize or translate — preserve original string
 - If source has no category: null
 
-canonicalCategory:
+category:
 - Choose EXACTLY ONE from this list:
   "Creative Arts"
   "Technology & AI"
@@ -219,6 +220,62 @@ Leadership & Impact   → Social Impact & Leadership
 
 Open / Multidisciplinary → Open / Multidisciplinary
 
+--- SUBCATEGORY MAPPING (apply after category mapping) ---
+After determining category, map rawCategory to a subCategory:
+
+Creative Arts:
+  Photography        → Photography
+  Art & Design       → Illustration & Visual Art
+  Digital Art        → Illustration & Visual Art
+  Illustration       → Illustration & Visual Art
+  Animation          → Illustration & Visual Art
+  Graphic Design     → Graphic Design
+  Fashion Design     → Fashion Design
+  Architecture & Urban Design → Architecture & Urban Design
+
+Technology & AI:
+  Technology         → Software Development
+  Technology Innovation → Software Development
+  Web Development    → Software Development
+  Coding             → Software Development
+  AI                 → AI & Machine Learning
+  Artificial Intelligence → AI & Machine Learning
+  Data Science       → AI & Machine Learning
+
+Science & Research:
+  Science            → Physical & Space Sciences
+  Research           → Physical & Space Sciences
+
+Business & Innovation:
+  Entrepreneurship   → Entrepreneurship & Startups
+  Innovation         → Entrepreneurship & Startups
+  Startups           → Entrepreneurship & Startups
+  Business           → Entrepreneurship & Startups
+
+Writing & Media:
+  Writing            → Fiction & Creative Writing
+  Film & Video       → Film & Video
+  Filmmaking         → Film & Video
+  Video Editing      → Film & Video
+  Music              → Music & Audio
+  Journalism         → Journalism & Nonfiction
+  Media              → Journalism & Nonfiction
+
+Environment & Sustainability:
+  Environment         → Conservation & Ecology
+  Sustainability      → Conservation & Ecology
+  Climate             → Climate & Clean Energy
+  Agriculture         → Sustainable Food & Agriculture
+
+Education & Learning:
+  Education           → Teaching & Curriculum
+
+Social Impact & Leadership:
+  Social Impact       → Community & Equity
+  Leadership & Impact → Youth Leadership
+
+Open / Multidisciplinary → null (no subcategory)
+
 MAPPING PRIORITY (when rawCategory does not match table):
 1. If rawCategory matches table exactly → use mapped value
 2. If title + tags clearly signal one domain → infer from that
@@ -237,16 +294,19 @@ AMBIGUOUS CASE RULES:
 - Performing Arts / Dance / Theatre → "Open / Multidisciplinary"
   (no dedicated category — do not force into Writing & Media)
 
-NEVER leave canonicalCategory null.
+NEVER leave category null.
 NEVER invent a value outside the list.
 
 ==================================================
 DESCRIPTION RULES (STRICT)
 ==================================================
-- 120–300 characters
-- 1–3 sentences
-- Neutral, informational tone
-- No hype, no dates, no eligibility restatement
+
+There are TWO description fields. Each serves a different purpose:
+
+### description (short — for contest cards)
+- 80–130 characters, 1–2 sentences
+- Goal: "What is this and who is it for?" — instant recognition
+- Neutral, informational tone. No hype, no dates, no eligibility restatement.
 
 MANDATORY STRUCTURE — follow this order:
 Sentence 1: What to submit
@@ -261,27 +321,42 @@ Sentence 2: Who it is for
   "For individual artists aged 18 and above."
   "For early-stage startups from African countries."
 
-Sentence 3 (optional but preferred): One distinctive signal
-  The single most useful thing that makes this contest worth
-  applying to over others in the same category.
-  NOT the prize amount — that has its own field.
-  NOT the deadline — that has its own field.
-  "Oscar-qualifying with jury selection across three categories."
-  "Fully funded — covers tuition, stipend, and travel."
-  "Winning works exhibited at a major international venue."
+### descriptionDetailed (expanded — for contest detail page)
+- 200–350 characters, 2–4 sentences
+- Goal: "Why should I apply?" — motivation + key details
+- Plain, conversational English. Write like a friend telling you
+  about a cool opportunity.
+- Avoid: showcasing, empowering, leveraging, fostering, premier,
+  prestigious, renowned, world-class.
 
-BANNED PATTERNS (never output these):
-- Never start with the organizer name
+STRUCTURE:
+- Start with what the contest is and what to submit (not organizer)
+- Mention one meaningful detail: what makes it unique,
+  what winners get, or the opportunity it unlocks
+- End with a motivating hook — why someone should apply
+
+SOURCES (derive from the page and structured data):
+- `title` and `category` — context
+- `prizeSummary` or `prize.description` — winner benefits
+- `eligibilityLabel` / `location` — who it's for
+- Unique `tags` — distinctive signals
+
+EXAMPLE:
+  description: "The world's biggest panoramic photo competition. Open to photographers everywhere."
+  descriptionDetailed: "The Epson International Pano Awards is the largest competition dedicated to panoramic photography. Open to photographers at any level from nearly 100 countries, it offers cash prizes, global exposure, and the title of world's best panoramic photographer for the year."
+
+### Banned patterns (both fields):
+- Never start with the organizer name (unless genuinely famous)
 - Never start with "Organized by"
 - Never start with "The [Organizer] invites"
 - Never describe organizer history or prestige
-- Never repeat the prize amount
+- Never repeat the prize amount (descriptionDetailed can mention winner benefits)
 - Never repeat the deadline
 - Never repeat the location
 - Never use: premier, prestigious, renowned, leading,
              world-class, unique opportunity, major platform
 
-SELF-CHECK before outputting description:
+SELF-CHECK before outputting:
 1. Does sentence 1 tell the user what to submit? If not — rewrite.
 2. Does sentence 2 tell the user who this is for? If not — rewrite.
 3. Does any sentence mention organizer name, prestige, or history?
@@ -387,13 +462,40 @@ audience.mode allowed values ONLY:
 NEVER output: "virtual", "physical", "remote", or any other value.
 
 ==================================================
-PRIZE RULES (EVIDENCE-BASED)
+PRIZE RULES (EVIDENCE-BASED — ANTI-HALLUCINATION)
 ==================================================
+
+⚠️ ANTI-HALLUCINATION RULE — CRITICAL
+
+When extracting prize data from the source webpage, only the
+following are VALID sources for prize amounts:
+1. An explicit dollar/euro/etc. amount visibly tied to the prize
+   (e.g. "€20,000 in cash prizes", "$50,000 grand prize")
+2. A numbered prize tier table with amounts
+
+The following are NOT valid sources for extracting amounts:
+- General descriptions mentioning "prizes" without numbers
+- Vague phrases like "amazing cash prizes", "substantial grants"
+- Organizer claims about "funding" without a specific figure
+- Inferring amounts from contest category or organizer reputation
+
+If no explicit numeric amount is found on the page:
+→ originalAmount = null (NOT a string with a guessed number)
+→ totalUSD = null (NOT 0)
+→ prizeSummary = "Cash prizes" (NOT "Cash prizes totaling $X")
+
+==================================================
+
 prizeSummary (REQUIRED when isMonetary = true):
 - 2–10 words, human-readable string
 - Card renders this directly — no conditional logic on amounts
-- If exact amount is known:   "Cash prizes totaling €20,000"
-- If amount is mentioned but unclear: "Cash prizes awarded"
+- MUST use the exact amounts from originalAmount/totalUSD only
+- Format: "Cash prizes totaling $[amount]" (with commas, e.g. "$20,000")
+- If originalAmount exists (string): "Cash prizes totaling [originalAmount]"
+  e.g. "Cash prizes totaling €20,000", "Cash prizes totaling NGN 5,000,000"
+- If only totalUSD exists (numeric): "Cash prizes totaling $[amount]"
+  Format with commas: "$20,000" not "$20000"
+- If NO explicit amount found: "Cash prizes" (clean, no fabricated number)
 - If non-monetary only: "Certificate + exhibition rights"
 - If mixed: "Cash prizes + residency"
 - NEVER leave null when isMonetary = true
@@ -401,6 +503,7 @@ prizeSummary (REQUIRED when isMonetary = true):
 originalAmount:
 - TYPE IS STRING — not a number
 - Capture exactly as written in source: "€20,000", "NGN 5,000,000", "$10k+"
+- ONLY populate this if an explicit numeric amount was found on the page
 - Do not convert — conversion is handled separately in totalUSD
 - If no amount found: null
 
@@ -414,15 +517,67 @@ currency:
 - ISO code: "USD", "EUR", "INR", "NGN" etc.
 - null if not stated — do not default to "USD"
 
-Classification:
-1. Explicit amount → isMonetary = true, fill originalAmount + totalUSD + prizeSummary
-2. Monetary mentioned, no amount → isMonetary = true, originalAmount = null,
-   totalUSD = null, prizeSummary = "Cash prizes awarded"
-3. Only non-monetary → isMonetary = false, both amounts = null,
-   prizeSummary = [describe what is awarded]
-4. No prize info → isMonetary = null, both amounts = null, prizeSummary = null
+==================================================
+CLASSIFICATION (FOUR STATES — STRICT)
+==================================================
+Pick EXACTLY ONE state based on what the source page actually shows.
+Do NOT promote to a higher state if the evidence is ambiguous.
 
-NEVER infer money.
+STATE 1 — Explicit amount found:
+  Source shows a specific monetary amount tied to the prize.
+  → isMonetary = true
+  → originalAmount = string from source (e.g. "€20,000")
+  → totalUSD = numeric USD equivalent (null if conversion fails)
+  → prizeSummary = "Cash prizes totaling [originalAmount]"
+
+STATE 2 — Monetary mentioned, no amount:
+  Source mentions "cash prizes", "monetary award", "prize money"
+  but gives NO specific dollar/euro/etc. figure.
+  → isMonetary = true
+  → originalAmount = null
+  → totalUSD = null (NOT 0)
+  → prizeSummary = "Cash prizes"
+    (No amount. Honest. The prize is monetary but the amount
+    was not captured.)
+
+STATE 3 — Only non-monetary prizes:
+  Source lists prizes like certificates, exhibitions, residencies,
+  publications, mentorship, etc. No cash amount mentioned.
+  → isMonetary = false
+  → originalAmount = null
+  → totalUSD = null
+  → prizeSummary = Condensed preview of actual non-monetary items
+    (e.g. "Certificate + exhibition", "Residency + publication")
+    Keep under 100 characters. Extract key items only.
+    Do NOT copy the full description verbatim.
+
+STATE 4 — No prize info at all:
+  Source does not mention prizes of any kind (monetary or otherwise).
+  → isMonetary = null
+  → originalAmount = null
+  → totalUSD = null
+  → prizeSummary = null
+  → prize.description = null (do not fill from unrelated text)
+
+==================================================
+VALIDATION CHECKLIST — FINAL VERIFICATION
+==================================================
+Before finalizing prize data, verify ALL of the following:
+
+☐ Is there an actual dollar/euro/etc. amount visible on the page?
+  If YES → STATE 1 + populate originalAmount from that exact text
+  If NO  → Is there ANY mention of cash/monetary prizes at all?
+    If YES → STATE 2 (prizeSummary = "Cash prizes")
+    If NO  → Continue to non-monetary check
+
+☐ Does the source describe non-monetary awards?
+  If YES → STATE 3 (condense into 100-char summary)
+  If NO  → STATE 4 (all null)
+
+☐ Did you avoid inferring or fabricating an amount?
+  Re-read your originalAmount and prizeSummary.
+  Is every number there traceable to an explicit character on the page?
+  If not → set to null.
 
 ==================================================
 ENTRY FEE RULES (FOUR STATES — STRICT)
@@ -506,7 +661,7 @@ If no → discard and pick something else.
 If yes → keep it.
 
 BANNED TAG PATTERNS:
-- Any tag that restates the canonicalCategory name
+- Any tag that restates the category name
 - Any tag that restates the location already shown on card
 - Any tag that restates the prize type already in prizeSummary
 - Any tag that is a substring of the contest title
@@ -529,7 +684,7 @@ Bad tags:  "fine-art" on an Art & Design card,
 FILTER KEYS RULES (MACHINE-ONLY)
 ==================================================
 filterKeys.domain:
-- kebab-case derived from canonicalCategory
+- kebab-case derived from category
   "Creative Arts" → "creative-arts"
   "Technology & AI" → "technology-ai"
   "Science & Research" → "science-research"

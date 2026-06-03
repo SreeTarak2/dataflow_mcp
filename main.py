@@ -76,7 +76,7 @@ def _clean_text(value: Any, fallback: str = "Not specified") -> str:
 def _infer_theme(contest: Dict[str, Any]) -> str:
     """Infer a visual theme from contest fields with conservative fallback."""
     tags = [str(tag).lower() for tag in contest.get("tags", []) if isinstance(tag, str)]
-    category = str(contest.get("canonicalCategory") or contest.get("rawCategory") or "").lower()
+    category = str(contest.get("category") or contest.get("rawCategory") or "").lower()
     description = str(contest.get("description") or "").lower()
     combined = " ".join(tags + [category, description])
 
@@ -105,7 +105,7 @@ def _build_cover_image_prompt(contest: Dict[str, Any]) -> str:
     source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
     organizer = _clean_text(source.get("name"), "Organizer not specified")
     category = _clean_text(
-        contest.get("canonicalCategory") or contest.get("rawCategory"),
+        contest.get("category") or contest.get("rawCategory"),
         "Open / Multidisciplinary",
     )
     description = _clean_text(contest.get("description"))
@@ -190,7 +190,7 @@ def _build_broken_image_card(contest: Dict[str, Any]) -> Dict[str, Any]:
         "contest_id": contest.get("_id"),
         "title": _clean_text(contest.get("title"), "Untitled Opportunity"),
         "category": _clean_text(
-            contest.get("canonicalCategory") or contest.get("rawCategory"),
+            contest.get("category") or contest.get("rawCategory"),
             "Open / Multidisciplinary",
         ),
         "status": _derive_contest_status(contest),
@@ -883,7 +883,7 @@ def get_contests_for_migration(
     """
     Get a batch of existing contests that need migration to v4.0 schema.
     
-    Returns contests missing key fields like canonicalCategory, prizeSummary,
+    Returns contests missing key fields like category, prizeSummary,
     or feeConfidence. Use pagination to process in batches.
     
     Args:
@@ -930,20 +930,24 @@ def get_contests_for_migration(
 def apply_migration_patch(
     contest_id: str,
     patch_json: str,
+    force: bool = False,
 ) -> Dict[str, Any]:
     """
-    Apply a normalized patch to update a single contest.
+    Apply a validated normalized patch to update a single contest.
     
-    This tool receives a JSON patch (from the backfill prompt) containing
-    ONLY the fields to update. Use this after normalizing with Claude using
-    the Prompts-backfill.txt prompt.
+    All patches go through 4 validations before writing:
+    1. Field whitelist — only allowed fields may be patched
+    2. Schema compliance — types, enums, formats checked
+    3. Destructive write protection — populated fields not overwritten with null
+    4. Cross-field consistency — no contradictory values
     
     Args:
         contest_id: MongoDB ObjectId of the contest (as string)
-        patch_json: JSON string with fields to update (e.g. {"canonicalCategory": "Technology & AI", "prizes": {"prizeSummary": "..."}})
+        patch_json: JSON string with fields to update
+        force: If True, bypass destructive write protection (use with caution)
     
     Returns:
-        Update result with modified count
+        Update result with validation info
     """
     client_id = "apply_migration_patch"
     
@@ -962,7 +966,7 @@ def apply_migration_patch(
             logger.warning(f"Invalid JSON patch: {patch_json}")
             return {"success": False, "error": "Invalid JSON in patch_json"}
         
-        result = ContestMigration.apply_migration_patch(contest_id, patch)
+        result = ContestMigration.apply_migration_patch(contest_id, patch, force=force)
         update_metrics(result.get("success", False))
         return result
         
@@ -975,22 +979,19 @@ def apply_migration_patch(
 @mcp.tool()
 def bulk_apply_migrations(
     migrations_json: str,
+    force: bool = False,
 ) -> Dict[str, Any]:
     """
-    Apply multiple migration patches in one batch operation.
+    Apply multiple migration patches in one batch (with validation).
     
-    Use this to process multiple contests' patches together for efficiency.
+    All patches go through 4 validations before writing.
     
     Args:
-        migrations_json: JSON string containing array of migrations:
-            [
-              {"contest_id": "...", "patch": {...}},
-              {"contest_id": "...", "patch": {...}},
-              ...
-            ]
+        migrations_json: JSON string containing array of migrations
+        force: If True, bypass destructive write protection for all patches
     
     Returns:
-        Bulk operation results with successful/failed counts
+        Bulk operation results with per-item validation status
     """
     client_id = "bulk_apply_migrations"
     
@@ -1012,7 +1013,7 @@ def bulk_apply_migrations(
         if not isinstance(migrations, list):
             return {"success": False, "error": "migrations_json must be an array"}
         
-        result = ContestMigration.bulk_apply_migrations(migrations)
+        result = ContestMigration.bulk_apply_migrations(migrations, force=force)
         update_metrics(result.get("success", False))
         return result
         

@@ -2,3 +2,332 @@
 2026-05-30 12:18:05 - __main__ - INFO - ============================================================
 2026-05-30 12:18:05 - __main__ - INFO - Starting DataFlow MCP Server
 2026-05-30 12:18:05 - __main__ - INFO - ============================================================
+2026-05-30 12:41:49 - config.mongodb - INFO - ✓ MongoDB connection established successfully
+2026-05-30 12:41:49 - __main__ - INFO - ============================================================
+2026-05-30 12:41:49 - __main__ - INFO - Starting DataFlow MCP Server
+2026-05-30 12:41:49 - __main__ - INFO - ============================================================
+2026-05-30 12:55:35 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-05-30 12:55:35 - __main__ - INFO - ============================================================
+2026-05-30 12:55:35 - __main__ - INFO - Starting DataFlow MCP Server
+2026-05-30 12:55:35 - __main__ - INFO - ============================================================
+2026-05-30 13:02:51 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-05-30 13:02:51 - __main__ - INFO - ============================================================
+2026-05-30 13:02:51 - __main__ - INFO - Starting DataFlow MCP Server
+2026-05-30 13:02:51 - __main__ - INFO - ============================================================
+2026-05-30 13:17:29 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-01.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 13:17:31 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-02.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 14:17:41 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-02.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 14:17:41 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-02.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 14:17:43 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-01.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 16:11:13 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-05-30 16:11:15 - tools.data_manager - INFO - Read 5 documents from Contests
+2026-05-30 16:11:16 - tools.data_manager - INFO - Updated document in Contests: 6957c514ff30462c323d15ee
+2026-05-30 16:11:16 - tools.data_manager - INFO - Updated document in Contests: 6957c514ff30462c323d15ef
+2026-05-30 16:11:17 - tools.data_manager - INFO - Updated document in Contests: 6957c514ff30462c323d15f0
+2026-05-30 16:11:18 - tools.data_manager - INFO - Updated document in Contests: 6957c514ff30462c323d15f1
+2026-05-30 16:11:18 - tools.data_manager - INFO - Updated document in Contests: 6957c514ff30462c323d15f2
+2026-05-30 16:54:47 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-00.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 17:52:58 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-02.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 17:52:59 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-00.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 17:53:00 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-01.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
+2026-05-30 17:53:01 - pymongo.client - ERROR - MongoClient background task encountered an error:
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1035, in connect
+    networking_interface = _configured_socket_interface(self.address, self.opts)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 480, in _configured_socket_interface
+    sock = _create_connection(address, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 385, in _create_connection
+    for res in socket.getaddrinfo(host, port, family=family, type=socket.SOCK_STREAM):  # type: ignore[attr-defined, unused-ignore]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vamsi/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/lib/python3.12/socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2276, in _process_periodic_tasks
+    self._topology.update_pool()
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/topology.py", line 710, in update_pool
+    server.pool.remove_stale_sockets(generation)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 966, in remove_stale_sockets
+    conn = self.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 1059, in connect
+    _raise_connection_failure(self.address, error, timeout_details=details)
+  File "/home/vamsi/nothing/CustomMCP/dataflow_mcp/.venv/lib/python3.12/site-packages/pymongo/pool_shared.py", line 148, in _raise_connection_failure
+    raise AutoReconnect(msg) from error
+pymongo.errors.AutoReconnect: ac-itn5i9r-shard-00-01.psj60cu.mongodb.net:27017: [Errno -3] Temporary failure in name resolution (configured timeouts: socketTimeoutMS: 5000.0ms, connectTimeoutMS: 5000.0ms)
