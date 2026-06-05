@@ -1078,6 +1078,62 @@ def get_raw_data_status(source: Optional[str] = None) -> dict:
         return {"success": False, "error": str(e)}
 
 
+@mcp.tool()
+def read_raw_collection(
+    collection_name: str,
+    filter_query: Optional[str] = None,
+    limit: int = 100,
+    skip: int = 0,
+    sort_by: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Read documents from the CHRawdata database (raw scraped data) with filtering and pagination.
+
+    Args:
+        collection_name: Name of the collection to read from (e.g. "rawdata")
+        filter_query: JSON string with MongoDB filter query (optional)
+        limit: Maximum number of documents to return (max 1000)
+        skip: Number of documents to skip for pagination
+        sort_by: Field name to sort by (optional)
+
+    Returns:
+        Dictionary containing the documents and metadata
+    """
+    client_id = "read_raw_collection"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        logger.info(f"Reading from raw collection: {collection_name}")
+
+        filter_dict = None
+        if filter_query:
+            try:
+                filter_dict = json.loads(filter_query)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON filter: {filter_query}")
+                return {"success": False, "error": "Invalid JSON in filter_query"}
+
+        result = DataManager.read_raw_data(
+            collection_name=collection_name,
+            filter_query=filter_dict,
+            limit=limit,
+            skip=skip,
+            sort_by=sort_by,
+        )
+
+        update_metrics(result.get("success", False))
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in read_raw_collection: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
 # ---------------------------------------------------------------------------
 # Web Validation Tools (chatbot-driven — chatbot does its own web search)
 # ---------------------------------------------------------------------------
@@ -1174,9 +1230,14 @@ def get_records_for_validation(
                 f"description: {str(rec.get('description', ''))[:200]}\n\n"
             )
 
-        full_prompt = prompt_text + record_section + "\n" + (
-            "Now validate each record above and return ONLY a JSON object "
-            "with the 'validations' array. Do not include any text outside the JSON."
+        full_prompt = (
+            prompt_text
+            + record_section
+            + "\n"
+            + (
+                "Now validate each record above and return ONLY a JSON object "
+                "with the 'validations' array. Do not include any text outside the JSON."
+            )
         )
 
         update_metrics(True)
@@ -1229,9 +1290,7 @@ def submit_raw_validation(
         raw_collection = get_raw_db()[RAW_COLLECTION]
 
         # Parse and normalize validation results
-        result = web_validator.process_validation_results(
-            validation_json
-        )
+        result = web_validator.process_validation_results(validation_json)
 
         if not result["success"]:
             update_metrics(False)
@@ -1255,15 +1314,14 @@ def submit_raw_validation(
 
             try:
                 from bson.objectid import ObjectId
+
                 doc_id = ObjectId(record_id)
             except Exception:
                 error_count += 1
                 error_details.append(f"Invalid record_id format: {record_id}")
                 continue
 
-            update_doc = web_validator.build_validation_update(
-                record_id, validation, chatbot_id
-            )
+            update_doc = web_validator.build_validation_update(record_id, validation, chatbot_id)
 
             try:
                 update_result = raw_collection.update_one(
@@ -1324,9 +1382,7 @@ def submit_contest_validation(
 
         target_collection = db[DEFAULT_COLLECTION]
 
-        result = web_validator.process_validation_results(
-            validation_json
-        )
+        result = web_validator.process_validation_results(validation_json)
 
         if not result["success"]:
             update_metrics(False)
@@ -1348,15 +1404,14 @@ def submit_contest_validation(
 
             try:
                 from bson.objectid import ObjectId
+
                 doc_id = ObjectId(contest_id)
             except Exception:
                 error_count += 1
                 error_details.append(f"Invalid contest_id: {contest_id}")
                 continue
 
-            update_doc = web_validator.build_validation_update(
-                contest_id, validation, chatbot_id
-            )
+            update_doc = web_validator.build_validation_update(contest_id, validation, chatbot_id)
 
             try:
                 update_result = target_collection.update_one(
@@ -1419,30 +1474,42 @@ def get_validation_status(source: Optional[str] = None) -> dict:
 
         # Count by status
         total = raw_collection.count_documents(base_filter)
-        pending = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("pending"),
-        })
-        in_progress = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("in_progress"),
-        })
-        validated = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("validated"),
-        })
-        failed = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("failed"),
-        })
-        skipped = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("skipped"),
-        })
-        errors = raw_collection.count_documents({
-            **base_filter,
-            **web_validator.build_status_filter("error"),
-        })
+        pending = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("pending"),
+            }
+        )
+        in_progress = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("in_progress"),
+            }
+        )
+        validated = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("validated"),
+            }
+        )
+        failed = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("failed"),
+            }
+        )
+        skipped = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("skipped"),
+            }
+        )
+        errors = raw_collection.count_documents(
+            {
+                **base_filter,
+                **web_validator.build_status_filter("error"),
+            }
+        )
 
         # Breakdown by chatbot if any
         chatbot_pipeline = [
@@ -1468,9 +1535,7 @@ def get_validation_status(source: Optional[str] = None) -> dict:
                 "error": errors,
             },
             "validated_percentage": round(validated / max(total, 1) * 100, 1),
-            "by_chatbot": [
-                {"chatbot_id": c["_id"], "count": c["count"]} for c in by_chatbot
-            ],
+            "by_chatbot": [{"chatbot_id": c["_id"], "count": c["count"]} for c in by_chatbot],
             "ready_to_process": validated,
         }
 
@@ -1551,7 +1616,11 @@ def get_records_for_contest_validation(
             timeline = contest.get("timeline", {}) or {}
             deadline = timeline.get("submissionDeadlineUTC", "not set") or "not set"
             prize_obj = contest.get("prize", {}) or {}
-            prize = prize_obj.get("prizeSummary", "") or prize_obj.get("originalAmount", "") or "not set"
+            prize = (
+                prize_obj.get("prizeSummary", "")
+                or prize_obj.get("originalAmount", "")
+                or "not set"
+            )
             audience = contest.get("audience", {}) or {}
             eligibility = audience.get("eligibilityLabel", "not set") or "not set"
 
@@ -1568,9 +1637,14 @@ def get_records_for_contest_validation(
                 f"description: {str(contest.get('description', ''))[:200]}\n\n"
             )
 
-        full_prompt = prompt_text + contest_section + "\n" + (
-            "Now validate each contest above and return ONLY a JSON object "
-            "with the 'validations' array. Do not include any text outside the JSON."
+        full_prompt = (
+            prompt_text
+            + contest_section
+            + "\n"
+            + (
+                "Now validate each contest above and return ONLY a JSON object "
+                "with the 'validations' array. Do not include any text outside the JSON."
+            )
         )
 
         update_metrics(True)
