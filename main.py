@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Any, Dict, List
 from fastmcp import FastMCP
@@ -1132,6 +1132,404 @@ def read_raw_collection(
         logger.error(f"Error in read_raw_collection: {e}")
         update_metrics(False)
         return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def get_records_for_structuring(
+    source: Optional[str] = None,
+    limit: int = 5,
+    require_validated: bool = False,
+) -> dict:
+    """
+    Fetch raw scraped records + Prompts.txt (v4.0 schema) so a chatbot can
+    structure them into the normalized Contests format.
+
+    The chatbot should:
+      1. Read the prompt_text for schema and rules
+      2. For each record, use its URL (or title) to search the web and find
+         the actual contest page
+      3. Extract fields following the Prompts.txt schema
+      4. Return a JSON array of structured records via submit_structured_records
+
+    Args:
+        source: Filter by scraper source (e.g. "contestwatchers"). If None, all sources.
+        limit: Maximum raw records to fetch (default 5, max 20)
+        require_validated: If True, only fetch records with validationStatus="validated"
+
+    Returns:
+        Dictionary with prompt_text, records, and usage instructions
+    """
+    client_id = "get_records_for_structuring"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        from config.mongodb import get_raw_db, RAW_COLLECTION
+
+        prompt_text = load_prompt_text("Prompts.txt")
+        raw_collection = get_raw_db()[RAW_COLLECTION]
+
+        db_filter: dict = {}
+        if source:
+            db_filter["source"] = source
+        if require_validated:
+            db_filter["validationStatus"] = "validated"
+
+        records = list(
+            raw_collection.find(db_filter).sort("scrapedAt", -1).limit(min(int(limit), 20))
+        )
+
+        if not records:
+            msg = (
+                "No validated raw records found." if require_validated else "No raw records found."
+            )
+            if source:
+                msg += f" Source filter: '{source}'."
+            return {
+                "success": True,
+                "message": msg,
+                "records": [],
+                "record_count": 0,
+                "prompt_text": None,
+            }
+
+        # Convert ObjectId to strings
+        for r in records:
+            r["_id"] = str(r["_id"])
+
+        logger.info(f"Returning {len(records)} records for structuring (source={source})")
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "record_count": len(records),
+            "records": records,
+            "prompt_name": "Prompts.txt",
+            "prompt_text": prompt_text,
+            "usage": {
+                "purpose": "Send each record to your LLM with the prompt_text. The LLM should use web search to find the official contest page, then extract fields following the v4.0 schema.",
+                "expected_output": "A JSON array of structured contest objects. Submit via submit_structured_records.",
+            },
+        }
+
+    except FileNotFoundError as e:
+        logger.error(f"Prompt file error: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        logger.error(f"Error in get_records_for_structuring: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def submit_structured_records(
+    records_json: str,
+) -> dict:
+    """
+    Submit structured contest records (following Prompts.txt v4.0 schema)
+    produced by a chatbot. Validates required fields and upserts into the
+    Contests collection.
+
+    Deduplication key: source.name + title (same as process_raw_data).
+
+    Args:
+        records_json: JSON string — either a single object or an array of
+                      structured contest objects following the Prompts.txt schema
+
+    Returns:
+        Dictionary with inserted/updated/skipped/error counts
+    """
+    client_id = "submit_structured_records"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        # Parse the JSON
+        try:
+            parsed = json.loads(records_json)
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Invalid JSON: {e}"}
+
+        # Normalize to a list
+        records = parsed if isinstance(parsed, list) else [parsed]
+        if not records:
+            return {"success": False, "error": "Empty records array"}
+
+        from pymongo import UpdateOne
+        from config.mongodb import db
+        from tools.tag_normalizer import normalize_tags_array
+
+        target_collection = db[os.getenv("COLLECTION_NAME", "Contests")]
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        required_fields = {"title", "link"}
+        inserted = 0
+        updated = 0
+        skipped = 0
+        errors = 0
+        error_details = []
+        operations = []
+
+        for record in records:
+            title = record.get("title", "")
+            if not title:
+                skipped += 1
+                error_details.append("Record missing 'title'")
+                continue
+
+            link = record.get("link", "")
+            if not link:
+                skipped += 1
+                error_details.append(f"Record '{title}' missing 'link'")
+                continue
+
+            source_obj = record.get("source", {})
+            source_name = (
+                source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
+            )
+
+            normalized = {
+                "title": title,
+                "link": link,
+                "updatedAt": now_iso,
+            }
+
+            # type — Prompts.txt: "contest" | "hackathon" | "grant" | "fellowship" | "award" | "challenge"
+            if record.get("type") in (
+                "contest",
+                "hackathon",
+                "grant",
+                "fellowship",
+                "award",
+                "challenge",
+            ):
+                normalized["type"] = record["type"]
+
+            # flags — Prompts.txt: ["women"] for women-exclusive contests
+            flags = record.get("flags", [])
+            if isinstance(flags, list) and any(f in ("women",) for f in flags):
+                normalized["flags"] = [f for f in flags if f in ("women",)]
+
+            # Map Prompts.txt fields to Contests collection schema
+            if "description" in record and record["description"]:
+                normalized["description"] = record["description"]
+            if "rawCategory" in record and record["rawCategory"]:
+                normalized["rawCategory"] = record["rawCategory"]
+            if "category" in record and record["category"]:
+                normalized["category"] = record["category"]
+
+            # source
+            if isinstance(source_obj, dict):
+                source_field = {}
+                if source_obj.get("name"):
+                    source_field["name"] = source_obj["name"]
+                if source_obj.get("url"):
+                    source_field["url"] = source_obj["url"]
+                if source_obj.get("type"):
+                    source_field["type"] = source_obj["type"]
+                if source_field:
+                    normalized["source"] = source_field
+            else:
+                normalized["source"] = {"name": source_name}
+
+            # image
+            image = record.get("image")
+            if isinstance(image, dict):
+                image_field = {}
+                primary = image.get("primary", {})
+                if isinstance(primary, dict) and primary.get("url"):
+                    image_field["primary"] = {
+                        "url": primary["url"],
+                        "status": primary.get("status", "active"),
+                    }
+                    if image_field:
+                        normalized["image"] = image_field
+                elif image.get("url"):
+                    normalized["image"] = {"primary": {"url": image["url"], "status": "active"}}
+
+            # entry
+            entry = record.get("entry")
+            if isinstance(entry, dict):
+                entry_field = {}
+                if entry.get("isFree") is not None:
+                    entry_field["isFree"] = entry["isFree"]
+                fee = entry.get("fee")
+                if isinstance(fee, dict):
+                    fee_field = {}
+                    if fee.get("amount") is not None:
+                        fee_field["amount"] = fee["amount"]
+                    if fee.get("currency"):
+                        fee_field["currency"] = fee["currency"]
+                    if fee_field:
+                        entry_field["fee"] = fee_field
+                if entry.get("feeConfidence"):
+                    entry_field["feeConfidence"] = entry["feeConfidence"]
+                if entry.get("feeNote"):
+                    entry_field["feeNote"] = entry["feeNote"]
+                if entry_field:
+                    normalized["entry"] = entry_field
+
+            # prize
+            prize = record.get("prize")
+            if isinstance(prize, dict):
+                prize_field = {}
+                if prize.get("isMonetary") is not None:
+                    prize_field["isMonetary"] = prize["isMonetary"]
+                if prize.get("originalAmount") is not None:
+                    prize_field["originalAmount"] = prize["originalAmount"]
+                if prize.get("totalUSD") is not None:
+                    prize_field["totalUSD"] = prize["totalUSD"]
+                if prize.get("currency"):
+                    prize_field["currency"] = prize["currency"]
+                if prize.get("prizeSummary"):
+                    prize_field["prizeSummary"] = prize["prizeSummary"]
+                if prize.get("description"):
+                    prize_field["description"] = prize["description"]
+                if prize_field:
+                    normalized["prize"] = prize_field
+
+            # audience
+            audience = record.get("audience")
+            if isinstance(audience, dict):
+                audience_field = {}
+                if audience.get("skillLevels"):
+                    audience_field["skillLevels"] = audience["skillLevels"]
+                if audience.get("primarySkillLevel"):
+                    audience_field["primarySkillLevel"] = audience["primarySkillLevel"]
+                age = audience.get("age")
+                if isinstance(age, dict):
+                    age_field = {}
+                    if age.get("min") is not None:
+                        age_field["min"] = age["min"]
+                    if age.get("max") is not None:
+                        age_field["max"] = age["max"]
+                    if age_field:
+                        audience_field["age"] = age_field
+                if audience.get("eligibilityLabel"):
+                    audience_field["eligibilityLabel"] = audience["eligibilityLabel"]
+                if audience.get("eligibilityDetail"):
+                    audience_field["eligibilityDetail"] = audience["eligibilityDetail"]
+                constraints = audience.get("constraints")
+                if isinstance(constraints, dict):
+                    constraints_field = {}
+                    for key in (
+                        "participantType",
+                        "academicStatus",
+                        "graduationAfter",
+                        "organizationFoundedAfter",
+                    ):
+                        if constraints.get(key) is not None:
+                            constraints_field[key] = constraints[key]
+                    team_size = constraints.get("teamSize")
+                    if isinstance(team_size, dict):
+                        ts_field = {}
+                        if team_size.get("min") is not None:
+                            ts_field["min"] = team_size["min"]
+                        if team_size.get("max") is not None:
+                            ts_field["max"] = team_size["max"]
+                        if ts_field:
+                            constraints_field["teamSize"] = ts_field
+                    if constraints_field:
+                        audience_field["constraints"] = constraints_field
+                if audience.get("location"):
+                    audience_field["location"] = audience["location"]
+                if audience.get("mode"):
+                    audience_field["mode"] = audience["mode"]
+                if audience_field:
+                    normalized["audience"] = audience_field
+
+            # timeline
+            timeline = record.get("timeline")
+            if isinstance(timeline, dict):
+                timeline_field = {}
+                for key in (
+                    "startDateUTC",
+                    "submissionDeadlineUTC",
+                    "eventEndUTC",
+                    "organizerTimeZone",
+                ):
+                    if timeline.get(key):
+                        timeline_field[key] = timeline[key]
+                if timeline_field:
+                    normalized["timeline"] = timeline_field
+
+            # tags
+            tags = record.get("tags", [])
+            if isinstance(tags, list) and tags:
+                try:
+                    normalized["tags"] = normalize_tags_array(tags, max_tags=6)
+                except Exception:
+                    normalized["tags"] = tags[:6]
+
+            # filterKeys
+            filter_keys = record.get("filterKeys")
+            if isinstance(filter_keys, dict):
+                fk_field = {}
+                if filter_keys.get("domain"):
+                    fk_field["domain"] = filter_keys["domain"]
+                if filter_keys.get("format"):
+                    fk_field["format"] = filter_keys["format"]
+                if filter_keys.get("medium"):
+                    fk_field["medium"] = filter_keys["medium"]
+                if filter_keys.get("themes"):
+                    fk_field["themes"] = filter_keys["themes"]
+                if fk_field:
+                    normalized["filterKeys"] = fk_field
+
+            # slug
+            if "slug" in record and record["slug"]:
+                normalized["slug"] = record["slug"]
+
+            # derived status from deadline
+            normalized["status"] = "open"
+
+            # Compute dedup key
+            dedup_source = source_name if source_name else "unknown"
+            filter_key = {"source.name": dedup_source, "title": title}
+
+            operations.append(
+                UpdateOne(
+                    filter_key,
+                    {"$set": normalized},
+                    upsert=True,
+                )
+            )
+
+        # Execute bulk upsert
+        if operations:
+            batch_size = 100
+            for i in range(0, len(operations), batch_size):
+                batch = operations[i : i + batch_size]
+                try:
+                    result = target_collection.bulk_write(batch, ordered=False)
+                    inserted += result.upserted_count
+                    updated += result.modified_count
+                except Exception as e:
+                    errors += len(batch)
+                    error_details.append(f"Bulk write error on batch {i // batch_size}: {e}")
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "total_submitted": len(records),
+            "inserted": inserted,
+            "updated": updated,
+            "skipped": skipped,
+            "errors": errors,
+            "details": error_details[:10],
+        }
+
+    except Exception as e:
+        logger.error(f"Error in submit_structured_records: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
 
 
 # ---------------------------------------------------------------------------

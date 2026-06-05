@@ -131,6 +131,22 @@ def _normalize_record(record: dict, source: str) -> dict:
         if field in record and record[field] is not None:
             normalized[field] = record[field]
 
+    # type — infer from record or default to "contest"
+    raw_type = record.get("type")
+    if raw_type in ("contest", "hackathon", "grant", "fellowship", "award", "challenge"):
+        normalized["type"] = raw_type
+    else:
+        normalized["type"] = "contest"
+
+    # flags — ["women"] for women-exclusive contests
+    raw_flags = record.get("flags", [])
+    if isinstance(raw_flags, list):
+        valid_flags = [f for f in raw_flags if f in ("women",)]
+        if valid_flags:
+            normalized["flags"] = valid_flags
+    elif isinstance(raw_flags, str) and raw_flags == "women":
+        normalized["flags"] = ["women"]
+
     # Normalize deadline
     deadline, status = _parse_deadline(record.get("deadline"))
     if deadline:
@@ -263,13 +279,13 @@ def process_raw_data(
     db_filter: dict = {"source": source}
     if require_validation:
         db_filter["validationStatus"] = "validated"
-        logger.info(f"Filtering raw records with validationStatus='validated' for source '{source}'")
+        logger.info(
+            f"Filtering raw records with validationStatus='validated' for source '{source}'"
+        )
 
     # 3. Fetch raw records
     try:
-        raw_records = list(
-            raw_collection.find(db_filter).sort("scrapedAt", -1).limit(limit)
-        )
+        raw_records = list(raw_collection.find(db_filter).sort("scrapedAt", -1).limit(limit))
     except Exception as e:
         logger.error(f"Failed to fetch raw records: {e}")
         return {"success": False, "error": str(e)}
