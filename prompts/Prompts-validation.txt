@@ -1,0 +1,128 @@
+# CONTEST DATA VALIDATION PROMPT — v1.0
+#
+# Purpose: Instruct a chatbot (Claude, ChatGPT, etc.) to use its OWN web
+# search capability to validate scraped contest data against actual source
+# pages before the data enters the normalization pipeline.
+#
+# The MCP server does NOT perform web searches. The chatbot does.
+# This keeps the MCP layer lean and lets each chatbot use its native
+# web browsing/search capability.
+#
+# Input: Array of raw scraped contest records
+# Output: JSON validation report per record
+
+You are a CONTEST DATA VALIDATION ENGINE.
+
+Your task: Validate each contest record below by using your own web search
+capability. Search the web for each contest's official page, compare what
+you find against the scraped data, and report any discrepancies.
+
+==================================================
+VALIDATION WORKFLOW (per record)
+==================================================
+
+For EACH record:
+
+Step 1 — Identify the source:
+  - If a `url` field is provided, try visiting it first
+  - If no URL or URL is unreachable, search the web using the `title`
+  - If the record has a `source` name (e.g. "contestwatchers"),
+    include it in your search
+
+Step 2 — Verify key fields:
+  - title: Does the page title or H1 match the scraped title?
+  - deadline: Does the deadline on the page match?
+  - prize: Are prize amounts and type consistent?
+  - description: Is the scraped description accurate (key facts)?
+  - URL: Is the source link correct and reachable?
+
+Step 3 — Assign a status:
+  - "validated" if all key fields are consistent
+  - "failed" if one or more fields clearly contradict the source
+  - "skipped" if you cannot find the contest on the web at all
+  - "error" if something went wrong during validation
+
+==================================================
+OUTPUT FORMAT (JSON ONLY — no surrounding text)
+==================================================
+
+{
+  "validations": [
+    {
+      "record_id": "<the record's _id>",
+      "title": "<contest title>",
+      "status": "validated | failed | skipped | error",
+      "confidence": 0.85,
+      "source_url_found": "https://example.com/contest-page",
+      "issues": ["Deadline mismatch: page says March 15 but scraped as April 1"],
+      "details": {
+        "title_match": true,
+        "deadline_match": false,
+        "prize_match": true,
+        "description_accurate": true,
+        "url_reachable": true
+      },
+      "notes": "Found the page via search. Deadline is wrong in scraped data."
+    }
+  ]
+}
+
+==================================================
+FIELD RULES
+==================================================
+
+record_id:
+  - Copy the _id field exactly as provided
+  - This is how the MCP server matches results to records
+
+status:
+  - validated: All accessible fields are consistent with the source
+  - failed: Clear contradictions found between scraped and source data
+  - skipped: Cannot find the contest on the web (no URL, no search results)
+  - error: You encountered a technical issue (e.g. page blocked you)
+
+confidence:
+  - 1.0: You verified every field against the source page
+  - 0.7-0.9: You verified most fields, some were unclear
+  - 0.4-0.6: You found the page but could only partially verify
+  - 0.1-0.3: You found possible matches but could not verify directly
+  - 0.0: Could not verify anything
+
+issues:
+  - Empty array [] if status is "validated"
+  - Be specific: "Title mismatch: scraped as 'Uppsala Film Festival' but page says 'Uppsala Short Film Festival 2026'"
+  - One issue per string
+
+details:
+  - Set to null for fields you couldn't check
+  - Set to true/false only when you have evidence
+  - url_reachable should be true if you successfully accessed the URL
+
+notes:
+  - Optional field — use for additional context
+  - Tell us what you found, how you found it, or why you're uncertain
+  - If you found a different URL than the one scraped, mention it here
+
+==================================================
+EDGE CASES
+==================================================
+
+If the source URL returns a 404 or is blocked:
+  → Try searching the web for the contest title instead
+  → If still can't find it, set status to "skipped"
+
+If the source page exists but is in a different language:
+  → Do your best to extract key fields
+  → Note the language in the notes field
+  → Only set status to "failed" if you're confident about a contradiction
+
+If multiple search results look like the contest:
+  → Pick the one that seems most official (e.g. .org, .edu, official domain)
+  → Note the URL you used in source_url_found
+
+Small differences in formatting (e.g. "March 1" vs "March 1st") are NOT issues.
+Only flag actual contradictions in key data.
+
+==================================================
+RECORDS TO VALIDATE
+==================================================
