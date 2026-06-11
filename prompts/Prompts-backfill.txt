@@ -50,6 +50,13 @@ OUTPUT SCHEMA (ONLY include fields that need updating)
 
   "description": "REWRITTEN_STRING_OR_NULL",
 
+  "flags": [
+    // Include ONLY if hero flag needs to be added.
+    // Never remove existing flags — only add "hero".
+    // Output the FULL flags array (existing + "hero").
+    // Example: ["hero"] or ["hero", "women"]
+  ],
+
   "prize": {
     // Include only the sub-fields that change
     "prizeSummary": "..."
@@ -272,6 +279,33 @@ Only change to "open" if there's clear evidence the contest
 welcomes ALL experience levels equally. If uncertain → keep existing value.
 
 ==================================================
+HERO FLAG RULES (ADDITIVE — NEVER REMOVE EXISTING FLAGS)
+==================================================
+flags is an array. You may ADD "hero" to it based on these criteria.
+Never remove existing flags — only add "hero" if the contest qualifies.
+
+Add "hero" when:
+- prize.totalUSD >= 10000 AND image.primary.url exists and is not null
+  (high-value contest with a real image)
+- OR the source.name or title mentions a globally recognized brand
+  (Google, NASA, UN, MIT, Red Bull, Adobe, National Geographic,
+  Netflix, Guggenheim, Sony, Microsoft, Apple, Meta, Amazon, NASA, IEEE, ACM)
+- OR the contest has strong prestige indicators in its tags or description
+  (e.g. "oscar-qualifying", "prestigious", "international", "global")
+
+Do NOT add "hero" when:
+- image.primary.url is null or empty (no image to show in the slider)
+- prize.totalUSD is null, 0, or < 5000
+- The contest is a niche academic/ research-only contest
+  with no visual component (purely paper-based)
+
+OUTPUT RULES:
+- Output the FULL flags array with "hero" added if applicable
+- Preserve ALL existing flags (e.g. ["hero", "women"] if both apply)
+- If contest does not qualify for hero → output the original flags array unchanged
+- If original flags is null/empty and hero doesn't apply → omit flags from output
+
+==================================================
 WHAT NOT TO TOUCH (PRESERVE AS-IS)
 ==================================================
 - type (contest/hackathon/grant/etc.)
@@ -283,7 +317,7 @@ WHAT NOT TO TOUCH (PRESERVE AS-IS)
 - filterKeys.domain, format, medium, themes
 - audience.mode, location, constraints, age
 - prize.isMonetary, originalAmount, totalUSD, currency, description
-- flags
+- flags (hero may be added — see HERO FLAG RULES below)
 - lastVerifiedAt
 - status, verificationStatus, archivedAt
 

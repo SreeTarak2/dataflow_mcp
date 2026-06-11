@@ -148,6 +148,22 @@ flags is an array of string labels. Only use values from this list:
            (female-identifying participants only).
            Do NOT set if open to any other gender.
 
+"hero" → contest is visually compelling and suitable for the
+          hero slider (UniversalSlider component). Set when:
+          - Prize totalUSD >= $10,000 AND contest has a clear
+            primary image URL (image.primary.url is not null)
+          - OR organizer is a globally recognized brand
+            (e.g. Google, NASA, UN, MIT, Red Bull, Adobe,
+            National Geographic, Netflix, Guggenheim, Sony)
+          - OR the contest has strong visual appeal AND notable
+            prestige indicators (award-winning, internationally
+            recognized, major industry partnership)
+
+          Do NOT set "hero" for:
+          - Contests with no image or only a generic/placeholder image
+          - Small local contests with prize pool < $5,000
+          - Niche academic contests with no visual component
+
 "broken-link" → official link is confirmed unreachable.
 
 Rules:
@@ -155,6 +171,8 @@ Rules:
 - NEVER add flags not in the list above
 - NEVER add "women" unless the contest explicitly prohibits
   participation by non-women
+- "hero" and "women" can coexist when a women-exclusive contest
+  is also hero-worthy: flags: ["hero", "women"]
 
 ==================================================
 CATEGORY RULES (STRICT)
