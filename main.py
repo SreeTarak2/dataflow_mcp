@@ -10,6 +10,7 @@ from config.logging_config import get_logger
 from config.security import RateLimiter, ValidationError
 from tools.data_manager import DataManager
 from tools.contest_migration import ContestMigration
+from tools.contest_detail_generator import ContestDetailGenerator
 from tools import raw_data_processor
 from tools import web_validator
 import urllib.request
@@ -2126,6 +2127,178 @@ def process_raw_data(source: str, limit: int = 100, auto_image: bool = False) ->
         return result
     except Exception as e:
         logger.error(f"Error in process_raw_data: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+# ==================== CONTEST DETAIL GENERATION ====================
+
+
+@mcp.tool()
+def get_contests_for_detail_generation(
+    batch_size: int = 11,
+    skip: int = 0,
+) -> Dict[str, Any]:
+    """
+    Return contests needing AI-generated detail pages, sorted by priority.
+
+    The response includes both the prompt text (Prompts-contest-details.txt)
+    and the contest documents. Send both to Mistral so it can research and
+    generate structured contest details.
+
+    Priority order: trending > open > high view velocity > recently added > prize value.
+
+    Args:
+        batch_size: Number of contests to return (default 11, max 50)
+        skip: Number of contests to skip (for pagination)
+
+    Returns:
+        Dictionary with prompt_text, contests list, and queue metadata
+    """
+    client_id = "get_contests_for_detail_generation"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        logger.info(
+            f"Building contest detail generation bundle (batch_size={batch_size}, skip={skip})"
+        )
+
+        prompt_text = load_prompt_text("Prompts-contest-details.txt")
+
+        generator = ContestDetailGenerator()
+        queue_result = generator.get_priority_queue(
+            batch_size=min(int(batch_size), 50),
+            skip=max(int(skip), 0),
+        )
+
+        if not queue_result.get("success"):
+            update_metrics(False)
+            return queue_result
+
+        contests = _json_safe(queue_result.get("contests", []))
+
+        result = {
+            "success": True,
+            "prompt_name": "Prompts-contest-details.txt",
+            "prompt_text": prompt_text,
+            "contest_count": len(contests),
+            "total_needing_generation": queue_result.get("total_needing_generation", 0),
+            "skip": queue_result.get("skip", skip),
+            "batch_size": queue_result.get("batch_size", batch_size),
+            "contests": contests,
+            "usage": {
+                "purpose": "Send prompt_text + contest(s) to Mistral. "
+                "It will use its web search to research each contest "
+                "and return structured JSON. Submit results via "
+                "submit_contest_details.",
+                "expected_llm_output": (
+                    "A JSON object per contest matching the schema in Prompts-contest-details.txt"
+                ),
+            },
+        }
+
+        update_metrics(True)
+        return result
+
+    except FileNotFoundError as e:
+        logger.error(f"Prompt file error: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        logger.error(f"Error in get_contests_for_detail_generation: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
+def submit_contest_details(
+    contest_id: str,
+    details_json: str,
+) -> Dict[str, Any]:
+    """
+    Submit AI-generated contest details (from Mistral) for validation and storage.
+
+    The details are validated for quality, then saved to the contest_details
+    collection with automatic versioning.
+
+    Args:
+        contest_id: The MongoDB ObjectId of the contest
+        details_json: JSON string matching the Prompts-contest-details.txt schema
+
+    Returns:
+        Dictionary with validation results, version info, and any warnings
+    """
+    client_id = "submit_contest_details"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        # Parse the JSON
+        try:
+            parsed = json.loads(details_json)
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Invalid JSON: {e}"}
+
+        if not isinstance(parsed, dict):
+            return {"success": False, "error": "Expected a JSON object, got array"}
+
+        # Fetch the contest document for validation context
+        from bson.objectid import ObjectId
+        from config.mongodb import db
+
+        contest_oid = ObjectId(contest_id)
+        contest_data = db[os.getenv("COLLECTION_NAME", "Contests")].find_one({"_id": contest_oid})
+
+        if not contest_data:
+            return {"success": False, "error": f"Contest {contest_id} not found"}
+
+        # Validate
+        generator = ContestDetailGenerator()
+        validation = generator.validate(parsed, contest_data)
+
+        if not validation.get("valid"):
+            logger.warning(
+                f"Contest {contest_id} failed validation: "
+                f"{validation.get('warning_count')} warnings"
+            )
+
+        # Save (even with warnings — warnings mean low quality, not unusable)
+        save_result = generator.save(
+            contest_id=contest_id,
+            content=validation.get("content", parsed.get("content", {})),
+            seo=validation.get("seo", parsed.get("seo", {})),
+            warnings=validation.get("warnings", []),
+        )
+
+        if not save_result.get("success"):
+            update_metrics(False)
+            return save_result
+
+        result = {
+            "success": True,
+            "version": save_result["version"],
+            "is_new": save_result["is_new"],
+            "quality_score": save_result["quality_score"],
+            "validation": {
+                "valid": validation["valid"],
+                "warning_count": validation["warning_count"],
+                "warnings": validation["warnings"],
+                "total_words": validation["total_words"],
+            },
+        }
+
+        update_metrics(True)
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in submit_contest_details: {e}")
         update_metrics(False)
         return {"success": False, "error": str(e)}
 
