@@ -2269,10 +2269,41 @@ def submit_contest_details(
                 f"{validation.get('warning_count')} warnings"
             )
 
-        # Save (even with warnings — warnings mean low quality, not unusable)
+        # ── Reject truly empty content before saving ──
+        # Content is empty if:
+        #   - total_words < 50 (essentially no meaningful text), OR
+        #   - only readingTime exists and nothing else meaningful
+        total_words = validation.get("total_words", 0)
+        validated_content = validation.get("content", parsed.get("content", {}))
+        meaningful_keys = [k for k in validated_content.keys() if k != "readingTime"]
+        is_empty_content = total_words < 50 or len(meaningful_keys) == 0
+
+        if is_empty_content:
+            logger.warning(
+                f"Contest {contest_id} rejected: content too sparse "
+                f"({total_words} words, {len(meaningful_keys)} meaningful keys)"
+            )
+            update_metrics(False)
+            return {
+                "success": False,
+                "error": (
+                    f"Generated content too sparse ({total_words} words, "
+                    f"{len(meaningful_keys)} meaningful sections). "
+                    f"The AI could not find enough information to generate "
+                    f"contest details. Review the research step and try again."
+                ),
+                "validation": {
+                    "valid": validation.get("valid", False),
+                    "warning_count": validation["warning_count"],
+                    "warnings": validation["warnings"],
+                    "total_words": total_words,
+                },
+            }
+
+        # Save validated content
         save_result = generator.save(
             contest_id=contest_id,
-            content=validation.get("content", parsed.get("content", {})),
+            content=validated_content,
             seo=validation.get("seo", parsed.get("seo", {})),
             warnings=validation.get("warnings", []),
         )
@@ -2287,7 +2318,7 @@ def submit_contest_details(
             "is_new": save_result["is_new"],
             "quality_score": save_result["quality_score"],
             "validation": {
-                "valid": validation["valid"],
+                "valid": validation.get("valid", False),
                 "warning_count": validation["warning_count"],
                 "warnings": validation["warnings"],
                 "total_words": validation["total_words"],

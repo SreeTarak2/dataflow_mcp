@@ -195,6 +195,7 @@ category:
   "Environment & Sustainability"
   "Education & Learning"
   "Social Impact & Leadership"
+  "Food & Cooking"
   "Open / Multidisciplinary"
 
 MAPPING TABLE (apply in order — first match wins):
@@ -230,6 +231,12 @@ Journalism            → Writing & Media
 Environment           → Environment & Sustainability
 Sustainability        → Environment & Sustainability
 Climate               → Environment & Sustainability
+Cooking               → Food & Cooking
+Food                  → Food & Cooking
+Culinary              → Food & Cooking
+Recipe                → Food & Cooking
+Baking                → Food & Cooking
+Barbecue              → Food & Cooking
 
 Education             → Education & Learning
 
@@ -284,6 +291,12 @@ Environment & Sustainability:
   Sustainability      → Conservation & Ecology
   Climate             → Climate & Clean Energy
   Agriculture         → Sustainable Food & Agriculture
+Food & Cooking:
+  Cooking             → Cooking
+  Baking              → Baking
+  Barbecue            → Barbecue
+  Recipe              → Recipe Development
+  Food Innovation     → Food Innovation
 
 Education & Learning:
   Education           → Teaching & Curriculum
@@ -709,8 +722,8 @@ filterKeys.domain:
   "Business & Innovation" → "business-innovation"
   "Writing & Media" → "writing-media"
   "Environment & Sustainability" → "environment-sustainability"
+  "Food & Cooking" → "food-cooking"
   "Education & Learning" → "education-learning"
-  "Social Impact & Leadership" → "social-impact-leadership"
   "Open / Multidisciplinary" → "open-multidisciplinary"
 
 filterKeys.format:

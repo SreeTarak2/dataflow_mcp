@@ -66,6 +66,7 @@ class ContestDetailGenerator:
                 {
                     "$match": {
                         "archivedAt": None,
+                        "status": {"$in": ["open", "scheduled"]},
                         **({"_id": {"$nin": list(existing_ids)}} if existing_ids else {}),
                     }
                 },
@@ -214,6 +215,7 @@ class ContestDetailGenerator:
             total_needing = self.contests_collection.count_documents(
                 {
                     "archivedAt": None,
+                    "status": {"$in": ["open", "scheduled"]},
                     **({"_id": {"$nin": list(existing_ids)}} if existing_ids else {}),
                 }
             )
@@ -450,11 +452,15 @@ class ContestDetailGenerator:
 
             now = datetime.now(timezone.utc)
 
+            # Determine if content is truly empty (only readingTime or nothing at all)
+            meaningful_keys = [k for k in content.keys() if k != "readingTime"]
+            has_meaningful_content = len(meaningful_keys) > 0
+
             doc = {
                 "contestId": contest_oid,
                 "version": new_version,
                 "schemaVersion": 1,
-                "status": "completed",
+                "status": "completed" if has_meaningful_content else "failed",
                 "generatedBy": "mistral-vibe-detail-pipeline",
                 "generatedAt": now,
                 "previousVersionAt": existing.get("generatedAt") if existing else None,
