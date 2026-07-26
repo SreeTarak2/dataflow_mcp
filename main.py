@@ -1534,6 +1534,759 @@ def submit_structured_records(
 
 
 # ---------------------------------------------------------------------------
+# Full Generation Tools (raw -> structured + details in one pass)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def get_records_for_full_generation(
+    source: Optional[str] = None,
+    limit: int = 3,
+    require_validated: bool = False,
+) -> dict:
+    """
+    Fetch raw scraped records + BOTH prompts (Prompts.txt + Prompts-contest-details.txt)
+    so a chatbot can structure AND generate contest details in one pass.
+
+    Use this when you want to go from raw scraped data to published contest details
+    in a single AI round-trip. The chatbot should:
+      1. Read BOTH prompt texts (structuring schema + detail generation rules)
+      2. For each record, use its URL (or title) to search the web and find
+         the actual contest page
+      3. Extract structured fields following Prompts.txt schema
+      4. Research and generate contest details following Prompts-contest-details.txt
+      5. Return both via submit_full_generation
+
+    Args:
+        source: Filter by scraper source (e.g. "contestwatchers"). If None, all sources.
+        limit: Maximum raw records to fetch (default 3, max 10)
+        require_validated: If True, only fetch records with validationStatus="validated"
+
+    Returns:
+        Dictionary with both prompts, raw records, and usage instructions
+    """
+    client_id = "get_records_for_full_generation"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        from config.mongodb import get_raw_db, RAW_COLLECTION
+
+        structuring_prompt = load_prompt_text("Prompts.txt")
+        details_prompt = load_prompt_text("Prompts-contest-details.txt")
+        raw_collection = get_raw_db()[RAW_COLLECTION]
+
+        db_filter: dict = {}
+        if source:
+            db_filter["source"] = source
+        if require_validated:
+            db_filter["validationStatus"] = "validated"
+
+        records = list(
+            raw_collection.find(db_filter).sort("scrapedAt", -1).limit(min(int(limit), 10))
+        )
+
+        if not records:
+            msg = (
+                "No validated raw records found." if require_validated else "No raw records found."
+            )
+            if source:
+                msg += f" Source filter: '{source}'."
+            return {
+                "success": True,
+                "message": msg,
+                "records": [],
+                "record_count": 0,
+                "structuring_prompt": None,
+                "details_prompt": None,
+            }
+
+        # Convert ObjectId to strings
+        for r in records:
+            r["_id"] = str(r["_id"])
+
+        logger.info(
+            f"Returning {len(records)} records for full generation (source={source})"
+        )
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "record_count": len(records),
+            "records": records,
+            "structuring_prompt_name": "Prompts.txt",
+            "structuring_prompt": structuring_prompt,
+            "details_prompt_name": "Prompts-contest-details.txt",
+            "details_prompt": details_prompt,
+            "usage": {
+                "purpose": (
+                    "Send each record to your LLM with BOTH prompts above. "
+                    "First structure the record using Prompts.txt schema, "
+                    "then use web search to research and generate contest details "
+                    "following Prompts-contest-details.txt. "
+                    "Submit both as a combined result via submit_full_generation."
+                ),
+                "expected_output": (
+                    "A JSON object with 'items' array, each item having "
+                    "'record' (structured contest data) and 'details' (contest details). "
+                    "Submit via submit_full_generation."
+                ),
+            },
+        }
+
+    except FileNotFoundError as e:
+        logger.error(f"Prompt file error: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        logger.error(f"Error in get_records_for_full_generation: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def submit_full_generation(
+    generation_json: str,
+) -> dict:
+    """
+    Submit a full generation result that includes BOTH structured contest data
+    AND contest details in one call.
+
+    Use this after get_records_for_full_generation. The JSON must contain an
+    'items' array, where each item has:
+      - record: Structured contest data following Prompts.txt v4.0 schema
+      - details: Contest details following Prompts-contest-details.txt schema
+
+    This tool:
+      1. Upserts each structured record into the Contests collection
+         (same dedup logic as submit_structured_records)
+      2. Finds the resulting contest _id by dedup key
+      3. Validates and saves contest_details for each
+
+    Args:
+        generation_json: JSON string with format:
+            {
+              "items": [
+                {
+                  "record": { ... Prompts.txt structured contest object ... },
+                  "details": { ... Prompts-contest-details.txt details object ... }
+                }
+              ]
+            }
+
+    Returns:
+        Dictionary with per-item results and summary counts
+    """
+    client_id = "submit_full_generation"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        # Parse the JSON
+        try:
+            parsed = json.loads(generation_json)
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Invalid JSON: {e}"}
+
+        items = parsed.get("items", [])
+        if not isinstance(items, list) or not items:
+            return {"success": False, "error": "generation_json must contain an 'items' array with at least one item"}
+
+        from pymongo import UpdateOne
+        from bson.objectid import ObjectId
+        from config.mongodb import db, get_raw_db
+        from tools.tag_normalizer import normalize_tags_array
+
+        target_collection = db[os.getenv("COLLECTION_NAME", "Contests")]
+        now_iso = datetime.now(timezone.utc).isoformat()
+        generator = ContestDetailGenerator()
+
+        structured_results = []
+        total_success = 0
+        total_errors = 0
+        error_details = []
+
+        for idx, item in enumerate(items):
+            record = item.get("record", {})
+            details = item.get("details", {})
+            item_result = {"index": idx}
+
+            # ── Step 1: Upsert structured record into Contests ──
+
+            title = record.get("title", "")
+            if not title:
+                item_result["error"] = "Record missing 'title'"
+                error_details.append(f"Item {idx}: record missing 'title'")
+                total_errors += 1
+                structured_results.append(item_result)
+                continue
+
+            link = record.get("link", "")
+            if not link:
+                item_result["error"] = f"Record '{title}' missing 'link'"
+                error_details.append(f"Item {idx}: '{title}' missing 'link'")
+                total_errors += 1
+                structured_results.append(item_result)
+                continue
+
+            source_obj = record.get("source", {})
+            source_name = (
+                source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
+            )
+
+            normalized = {
+                "title": title,
+                "link": link,
+                "updatedAt": now_iso,
+            }
+
+            # Copy fields from record (same logic as submit_structured_records)
+            if record.get("type") in (
+                "contest", "hackathon", "grant", "fellowship", "award", "challenge",
+            ):
+                normalized["type"] = record["type"]
+
+            flags = record.get("flags", [])
+            if isinstance(flags, list) and any(f in ("women",) for f in flags):
+                normalized["flags"] = [f for f in flags if f in ("women",)]
+
+            if "description" in record and record["description"]:
+                normalized["description"] = record["description"]
+            if "rawCategory" in record and record["rawCategory"]:
+                normalized["rawCategory"] = record["rawCategory"]
+            if "category" in record and record["category"]:
+                normalized["category"] = record["category"]
+
+            # source
+            if isinstance(source_obj, dict):
+                source_field = {}
+                if source_obj.get("name"):
+                    source_field["name"] = source_obj["name"]
+                if source_obj.get("url"):
+                    source_field["url"] = source_obj["url"]
+                if source_obj.get("type"):
+                    source_field["type"] = source_obj["type"]
+                if source_field:
+                    normalized["source"] = source_field
+            else:
+                normalized["source"] = {"name": source_name}
+
+            # image
+            image = record.get("image")
+            if isinstance(image, dict):
+                image_field = {}
+                primary = image.get("primary", {})
+                if isinstance(primary, dict) and primary.get("url"):
+                    image_field["primary"] = {
+                        "url": primary["url"],
+                        "status": primary.get("status", "active"),
+                    }
+                if image_field:
+                    normalized["image"] = image_field
+                elif image.get("url"):
+                    normalized["image"] = {"primary": {"url": image["url"], "status": "active"}}
+
+            # entry
+            entry = record.get("entry")
+            if isinstance(entry, dict):
+                entry_field = {}
+                if entry.get("isFree") is not None:
+                    entry_field["isFree"] = entry["isFree"]
+                fee = entry.get("fee")
+                if isinstance(fee, dict):
+                    fee_field = {}
+                    if fee.get("amount") is not None:
+                        fee_field["amount"] = fee["amount"]
+                    if fee.get("currency"):
+                        fee_field["currency"] = fee["currency"]
+                    if fee_field:
+                        entry_field["fee"] = fee_field
+                if entry.get("feeConfidence"):
+                    entry_field["feeConfidence"] = entry["feeConfidence"]
+                if entry.get("feeNote"):
+                    entry_field["feeNote"] = entry["feeNote"]
+                if entry_field:
+                    normalized["entry"] = entry_field
+
+            # prize
+            prize = record.get("prize")
+            if isinstance(prize, dict):
+                prize_field = {}
+                if prize.get("isMonetary") is not None:
+                    prize_field["isMonetary"] = prize["isMonetary"]
+                if prize.get("originalAmount") is not None:
+                    prize_field["originalAmount"] = prize["originalAmount"]
+                if prize.get("totalUSD") is not None:
+                    prize_field["totalUSD"] = prize["totalUSD"]
+                if prize.get("currency"):
+                    prize_field["currency"] = prize["currency"]
+                if prize.get("prizeSummary"):
+                    prize_field["prizeSummary"] = prize["prizeSummary"]
+                if prize.get("description"):
+                    prize_field["description"] = prize["description"]
+                if prize_field:
+                    normalized["prize"] = prize_field
+
+            # audience
+            audience = record.get("audience")
+            if isinstance(audience, dict):
+                audience_field = {}
+                if audience.get("skillLevels"):
+                    audience_field["skillLevels"] = audience["skillLevels"]
+                if audience.get("primarySkillLevel"):
+                    audience_field["primarySkillLevel"] = audience["primarySkillLevel"]
+                age = audience.get("age")
+                if isinstance(age, dict):
+                    age_field = {}
+                    if age.get("min") is not None:
+                        age_field["min"] = age["min"]
+                    if age.get("max") is not None:
+                        age_field["max"] = age["max"]
+                    if age_field:
+                        audience_field["age"] = age_field
+                if audience.get("eligibilityLabel"):
+                    audience_field["eligibilityLabel"] = audience["eligibilityLabel"]
+                if audience.get("eligibilityDetail"):
+                    audience_field["eligibilityDetail"] = audience["eligibilityDetail"]
+                constraints = audience.get("constraints")
+                if isinstance(constraints, dict):
+                    constraints_field = {}
+                    for key in (
+                        "participantType", "academicStatus",
+                        "graduationAfter", "organizationFoundedAfter",
+                    ):
+                        if constraints.get(key) is not None:
+                            constraints_field[key] = constraints[key]
+                    team_size = constraints.get("teamSize")
+                    if isinstance(team_size, dict):
+                        ts_field = {}
+                        if team_size.get("min") is not None:
+                            ts_field["min"] = team_size["min"]
+                        if team_size.get("max") is not None:
+                            ts_field["max"] = team_size["max"]
+                        if ts_field:
+                            constraints_field["teamSize"] = ts_field
+                    if constraints_field:
+                        audience_field["constraints"] = constraints_field
+                if audience.get("location"):
+                    audience_field["location"] = audience["location"]
+                if audience.get("mode"):
+                    audience_field["mode"] = audience["mode"]
+                if audience_field:
+                    normalized["audience"] = audience_field
+
+            # timeline
+            timeline = record.get("timeline")
+            if isinstance(timeline, dict):
+                timeline_field = {}
+                for key in (
+                    "startDateUTC", "submissionDeadlineUTC",
+                    "eventEndUTC", "organizerTimeZone",
+                ):
+                    if timeline.get(key):
+                        timeline_field[key] = timeline[key]
+                if timeline_field:
+                    normalized["timeline"] = timeline_field
+
+            # tags
+            tags = record.get("tags", [])
+            if isinstance(tags, list) and tags:
+                try:
+                    normalized["tags"] = normalize_tags_array(tags, max_tags=6)
+                except Exception:
+                    normalized["tags"] = tags[:6]
+
+            # filterKeys
+            filter_keys = record.get("filterKeys")
+            if isinstance(filter_keys, dict):
+                fk_field = {}
+                if filter_keys.get("domain"):
+                    fk_field["domain"] = filter_keys["domain"]
+                if filter_keys.get("format"):
+                    fk_field["format"] = filter_keys["format"]
+                if filter_keys.get("medium"):
+                    fk_field["medium"] = filter_keys["medium"]
+                if filter_keys.get("themes"):
+                    fk_field["themes"] = filter_keys["themes"]
+                if fk_field:
+                    normalized["filterKeys"] = fk_field
+
+            if "slug" in record and record["slug"]:
+                normalized["slug"] = record["slug"]
+
+            normalized["status"] = "open"
+
+            # Dedup key for upsert
+            dedup_source = source_name if source_name else "unknown"
+            filter_key = {"source.name": dedup_source, "title": title}
+
+            try:
+                upsert_result = target_collection.update_one(
+                    filter_key,
+                    {"$set": normalized},
+                    upsert=True,
+                )
+
+                # Get the contest _id (either the upserted_id or find existing)
+                if upsert_result.upserted_id:
+                    contest_id = str(upsert_result.upserted_id)
+                else:
+                    existing = target_collection.find_one(
+                        filter_key, {"_id": 1}
+                    )
+                    contest_id = str(existing["_id"]) if existing else ""
+
+                item_result["contest_id"] = contest_id
+                item_result["is_new"] = upsert_result.upserted_id is not None
+                item_result["title"] = title
+
+            except Exception as e:
+                item_result["error"] = f"Upsert failed for '{title}': {e}"
+                error_details.append(f"Item {idx}: upsert failed for '{title}': {e}")
+                total_errors += 1
+                details_results.append(item_result)
+                continue
+
+            # ── Step 2: Save contest_details ──
+
+            if not isinstance(details, dict) or not details:
+                item_result["details_warning"] = "No details provided, skipping details save"
+                structured_results.append(item_result)
+                total_success += 1
+                continue
+
+            try:
+                # Fetch the contest document for validation context
+                contest_oid = ObjectId(contest_id)
+                contest_data = target_collection.find_one({"_id": contest_oid})
+
+                if not contest_data:
+                    item_result["details_error"] = f"Contest {contest_id} not found after upsert"
+                    error_details.append(f"Item {idx}: contest {contest_id} not found after upsert")
+                    total_errors += 1
+                    continue
+
+                # Validate the details
+                validation = generator.validate(details, contest_data)
+
+                if not validation.get("valid"):
+                    logger.warning(
+                        f"Contest {contest_id} failed validation: "
+                        f"{validation.get('warning_count')} warnings"
+                    )
+
+                # Check for empty content
+                total_words = validation.get("total_words", 0)
+                validated_content = validation.get("content", details.get("content", {}))
+                meaningful_keys = [k for k in validated_content.keys() if k != "readingTime"]
+                is_empty_content = total_words < 50 or len(meaningful_keys) == 0
+
+                if is_empty_content:
+                    item_result["details_warning"] = (
+                        f"Details too sparse ({total_words} words, "
+                        f"{len(meaningful_keys)} meaningful keys)"
+                    )
+                    structured_results.append(item_result)
+                    total_success += 1
+                    continue
+
+                # Save validated content
+                save_result = generator.save(
+                    contest_id=contest_id,
+                    content=validated_content,
+                    seo=validation.get("seo", details.get("seo", {})),
+                    warnings=validation.get("warnings", []),
+                )
+
+                if save_result.get("success"):
+                    item_result["version"] = save_result["version"]
+                    item_result["details_saved"] = True
+                    total_success += 1
+                else:
+                    item_result["details_error"] = save_result.get("error", "Unknown save error")
+                    error_details.append(f"Item {idx}: details save failed for '{title}': {save_result.get('error')}")
+                    total_errors += 1
+                    continue
+
+            except Exception as e:
+                item_result["details_error"] = str(e)
+                error_details.append(f"Item {idx}: details error for '{title}': {e}")
+                total_errors += 1
+                continue
+
+            structured_results.append(item_result)
+
+        update_metrics(total_success > 0)
+        return {
+            "success": True,
+            "total_items": len(items),
+            "successful": total_success,
+            "errors": total_errors,
+            "results": structured_results,
+            "error_details": error_details[:10],
+        }
+
+    except Exception as e:
+        logger.error(f"Error in submit_full_generation: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Discrepancy Flagging & Raw Data Overview Tools
+# (stored in the raw DB cluster for temporary/audit purposes)
+# ---------------------------------------------------------------------------
+
+FLAGGED_COLLECTION = "flagged_discrepancies"
+
+
+@mcp.tool()
+def flag_contest_discrepancy(
+    contest_id: str,
+    discrepancies_json: str,
+    flagged_by: str = "",
+    source: str = "ai_detail_generation",
+) -> dict:
+    """
+    Flag a factual discrepancy found in CONTEST DATA during AI research.
+
+    When a chatbot discovers a concrete, verifiable error in the Contests
+    collection while doing research (e.g. the prize on the official page
+    differs from what's stored), it can call this tool to save the finding
+    to the flagged_discrepancies collection for human review.
+
+    This tool does NOT modify the Contests collection — it only records
+    the finding. A human should review and resolve via the appropriate
+    pipeline (apply_migration_patch, etc.).
+
+    Args:
+        contest_id: The MongoDB ObjectId of the contest with the issue
+        discrepancies_json: JSON string — array of discrepancy objects.
+            Each object: {
+              "field": "prize.totalUSD",
+              "currentValue": 50000,
+              "observedValue": 10000,
+              "sourceUrl": "https://...",
+              "confidence": 0.95,
+              "notes": "Official page clearly states $10,000"
+            }
+        flagged_by: Identifier for the chatbot/AI that found it
+                     (e.g. "claude-1", "chatgpt-mistral")
+        source: Pipeline stage that detected it
+                (e.g. "ai_detail_generation", "ai_validation")
+
+    Returns:
+        Dictionary with flag_id and summary
+    """
+    client_id = "flag_contest_discrepancy"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        logger.info(f"Flagging discrepancy for contest {contest_id} by {flagged_by}")
+
+        from config.mongodb import get_raw_db
+
+        # Parse the discrepancies JSON
+        try:
+            discrepancies = json.loads(discrepancies_json)
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Invalid JSON in discrepancies_json: {e}"}
+
+        if not isinstance(discrepancies, list):
+            return {"success": False, "error": "discrepancies_json must be a JSON array"}
+
+        if not discrepancies:
+            return {"success": False, "error": "discrepancies array is empty"}
+
+        # Connect to raw DB and get/create the flagged_discrepancies collection
+        raw_db = get_raw_db()
+        flagged_collection = raw_db[FLAGGED_COLLECTION]
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        doc = {
+            "contestId": contest_id,
+            "flaggedBy": flagged_by,
+            "detectedAt": now,
+            "source": source,
+            "status": "pending",
+            "discrepancies": discrepancies,
+            "reviewedBy": None,
+            "reviewedAt": None,
+            "reviewNotes": None,
+        }
+
+        insert_result = flagged_collection.insert_one(doc)
+        flag_id = str(insert_result.inserted_id)
+
+        logger.info(
+            f"Flagged discrepancy {flag_id} saved for contest {contest_id} "
+            f"({len(discrepancies)} issue(s))"
+        )
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "flag_id": flag_id,
+            "contest_id": contest_id,
+            "discrepancy_count": len(discrepancies),
+            "status": "pending",
+            "message": "Discrepancy flagged for human review. The Contests collection has NOT been modified.",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in flag_contest_discrepancy: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def get_scraped_overview(
+    source: Optional[str] = None,
+) -> dict:
+    """
+    Get a quick, actionable overview of what raw scraped records are available.
+
+    Use this to see what's in the pipeline before deciding which source
+    to work on. Returns counts by source, validation status breakdown,
+    total records, newest/oldest record dates, and a few sample titles.
+
+    This is designed for AI agents (ChatGPT, Mistral, Claude) to quickly
+    understand what data is available and decide what to work on next.
+
+    Args:
+        source: Optional scraper source to filter by
+                (e.g. "contestwatchers", "opportunityDesk")
+
+    Returns:
+        Dictionary with overview statistics and sample records
+    """
+    client_id = "get_scraped_overview"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        logger.info(f"Scraped overview requested for source={source}")
+
+        from config.mongodb import get_raw_db, RAW_COLLECTION
+
+        raw_collection = get_raw_db()[RAW_COLLECTION]
+
+        match_filter = {"source": source} if source else {}
+
+        # Total count
+        total = raw_collection.count_documents(match_filter)
+
+        # Breakdown by source
+        source_pipeline = [
+            {"$match": match_filter},
+            {
+                "$group": {
+                    "_id": "$source",
+                    "count": {"$sum": 1},
+                    "last_scraped": {"$max": "$scrapedAt"},
+                    "first_scraped": {"$min": "$scrapedAt"},
+                }
+            },
+            {"$sort": {"count": -1}},
+        ]
+        by_source = list(raw_collection.aggregate(source_pipeline))
+
+        # Validation status breakdown
+        status_pipeline = [
+            {"$match": match_filter},
+            {
+                "$group": {
+                    "_id": {
+                        "$ifNull": ["$validationStatus", "pending"]
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"count": -1}},
+        ]
+        by_status = list(raw_collection.aggregate(status_pipeline))
+
+        # Get a few sample titles (most recent)
+        samples = list(
+            raw_collection.find(
+                match_filter,
+                {"title": 1, "source": 1, "scrapedAt": 1, "url": 1, "validationStatus": 1},
+            )
+            .sort("scrapedAt", -1)
+            .limit(5)
+        )
+
+        # Convert ObjectIds to strings
+        for s in samples:
+            s["_id"] = str(s["_id"])
+
+        # Count records that are ready for structuring (have title + url)
+        ready_filter = {
+            **match_filter,
+            "title": {"$exists": True, "$ne": ""},
+            "url": {"$exists": True, "$ne": ""},
+        }
+        ready_count = raw_collection.count_documents(ready_filter)
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "database": "CHRawdata",
+            "collection": RAW_COLLECTION,
+            "source_filter": source or "all",
+            "total_records": total,
+            "ready_for_structuring": ready_count,
+            "by_source": [
+                {
+                    "source": s["_id"],
+                    "count": s["count"],
+                    "last_scraped": s.get("last_scraped"),
+                    "first_scraped": s.get("first_scraped"),
+                }
+                for s in by_source
+            ],
+            "by_validation_status": {
+                s["_id"]: s["count"] for s in by_status
+            },
+            "samples": [
+                {
+                    "_id": s["_id"],
+                    "title": s.get("title", ""),
+                    "source": s.get("source", ""),
+                    "url": s.get("url", ""),
+                    "scraped_at": s.get("scrapedAt"),
+                    "validation_status": s.get("validationStatus", "pending"),
+                }
+                for s in samples
+            ],
+            "usage": {
+                "purpose": "Use this overview to decide which source to work on. Then call get_records_for_structuring(source=..., limit=5) to fetch records for AI structuring, or get_records_for_validation(source=..., limit=5) to validate records first.",
+                "available_pipelines": [
+                    "get_records_for_structuring — fetch records + prompts for AI structuring",
+                    "get_records_for_validation — claim records for web validation",
+                    "get_raw_data_status — detailed raw data stats",
+                    "get_validation_status — validation pipeline progress",
+                ],
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error in get_scraped_overview: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
 # Web Validation Tools (chatbot-driven — chatbot does its own web search)
 # ---------------------------------------------------------------------------
 #
