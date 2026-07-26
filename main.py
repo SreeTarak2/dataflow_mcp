@@ -1700,7 +1700,7 @@ def submit_full_generation(
 
         from pymongo import UpdateOne
         from bson.objectid import ObjectId
-        from config.mongodb import db, get_raw_db
+        from config.mongodb import db
         from tools.tag_normalizer import normalize_tags_array
 
         target_collection = db[os.getenv("COLLECTION_NAME", "Contests")]
@@ -1942,6 +1942,13 @@ def submit_full_generation(
                     )
                     contest_id = str(existing["_id"]) if existing else ""
 
+                if not contest_id:
+                    item_result["error"] = f"Contest '{title}' could not be found after upsert"
+                    error_details.append(f"Item {idx}: '{title}' not found after upsert")
+                    total_errors += 1
+                    structured_results.append(item_result)
+                    continue
+
                 item_result["contest_id"] = contest_id
                 item_result["is_new"] = upsert_result.upserted_id is not None
                 item_result["title"] = title
@@ -1950,7 +1957,7 @@ def submit_full_generation(
                 item_result["error"] = f"Upsert failed for '{title}': {e}"
                 error_details.append(f"Item {idx}: upsert failed for '{title}': {e}")
                 total_errors += 1
-                details_results.append(item_result)
+                structured_results.append(item_result)
                 continue
 
             # ── Step 2: Save contest_details ──
