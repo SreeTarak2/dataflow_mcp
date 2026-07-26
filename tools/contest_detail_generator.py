@@ -151,14 +151,19 @@ class ContestDetailGenerator:
                                     ]
                                 },
                                 "then": {
-                                    "$min": [
+                                    "$max": [
                                         {
-                                            "$divide": [
-                                                {"$log": "$prize.totalUSD"},
-                                                6.0,
+                                            "$min": [
+                                                {
+                                                    "$divide": [
+                                                        {"$log10": "$prize.totalUSD"},
+                                                        6.0,
+                                                    ]
+                                                },
+                                                1,
                                             ]
                                         },
-                                        1,
+                                        0,
                                     ]
                                 },
                                 "else": 0,

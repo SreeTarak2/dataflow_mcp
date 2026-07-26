@@ -6,6 +6,10 @@ find information about this contest. Search for:
 - Community discussions and participant tips
 - Any other information that would help a beginner decide whether to apply
 
+When searching, include the exact deadline year and current status
+(e.g. "closed" or "open") from CONTEST DATA in your search query, to
+avoid surfacing a newer or older cycle's page instead of this one.
+
 Only use information you actually find. If you can't find something, omit
 that section rather than fabricating.
 
@@ -20,9 +24,21 @@ competitions, hackathons, fellowships, and grants.
 2. If a section has no supporting evidence in the provided data, OMIT the key
    entirely from the JSON rather than writing generic filler. Do not write
    "this contest offers great opportunities" style padding to fill space.
+   This overrides any stated minimum item count elsewhere in this prompt —
+   if fewer than the minimum number of genuine, verifiable items exist for
+   benefits or tips, output only the ones you can support. Never pad with
+   generic filler to reach a minimum count.
 3. Numeric facts (prize amounts, deadlines, team size limits) must come
    verbatim from CONTEST DATA, never paraphrased from research prose which
    may be outdated or about a different contest cycle.
+3b. Edition/cycle lock: CONTEST DATA describes one specific instance of
+   this contest, identified by its deadline and status. If research reveals
+   a different year, cycle, or edition of the same contest series (different
+   dates, different prize pool, "now open" language for a contest CONTEST
+   DATA marks as closed), that research is OUT OF SCOPE. Do not use its
+   dates, prizes, eligibility, or links anywhere in the output, including
+   prose fields. You may note in general terms that the contest has run in
+   past or future cycles, without stating specifics from the other cycle.
 4. Write in third person only. Never use "I", "we", "our". Address the
    reader as "you" only inside whoShouldApply, tips, and shouldYouApply —
    nowhere else.
@@ -61,8 +77,8 @@ faithful minimum rather than fabricating.
     },
     "whyJoin": "2-3 paragraphs, outcomes-focused (skills, network, portfolio, recognition). Every claim traceable to CONTEST DATA or RESEARCH DATA.",
     "whoShouldApply": "1-2 paragraphs. Name specific skill levels, backgrounds, or fields — not 'anyone interested'.",
-    "benefits": ["3-7 distinct, non-overlapping benefit strings"],
-    "tips": ["3-6 actionable tips specific to THIS contest, not generic advice like 'start early'"],
+    "benefits": ["3-7 distinct, non-overlapping benefit strings (fewer is fine per Rule 2 if only that many are verifiable)"],
+    "tips": ["3-6 actionable tips specific to THIS contest, not generic advice like 'start early' (fewer is fine per Rule 2 if only that many are verifiable)"],
     "shouldYouApply": {
       "idealFor": "1 paragraph, specific candidate profile",
       "goodFit": ["2-5 specific scenarios"],
@@ -106,6 +122,14 @@ Add under content.timelineSummary:
   { "phase": "phase name", "date": "actual or relative date from source", "label": "what happens" }
 ]
 
+=== STATUS-AWARE FRAMING ===
+If CONTEST DATA's status field is "closed" or the submission deadline has
+already passed relative to today, do not use active-recruitment language
+(e.g. "apply now", "don't miss out"). Instead frame whyJoin, tips, and
+shouldYouApply around what a reader should know if this contest returns in
+a future cycle, without stating any specific dates or figures from a future
+cycle unless they appear verbatim in CONTEST DATA.
+
 === FINAL REMINDER ===
 Merge all sections above into ONE JSON object matching the base schema plus
 any conditional additions. Re-check before responding:
@@ -113,4 +137,6 @@ any conditional additions. Re-check before responding:
 - No field was force-filled with generic text
 - readingTime matches actual word count / 200
 - No markdown, no line breaks inside string values, no first person
+- No fact, date, or figure in the output originates from a different
+  edition or cycle of this contest than the one in CONTEST DATA
 Output the JSON object now, nothing else.
