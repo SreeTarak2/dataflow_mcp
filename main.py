@@ -1054,6 +1054,220 @@ def bulk_apply_migrations(
         return {"success": False, "error": "An error occurred"}
 
 
+def _build_normalized_record(
+    record: Dict[str, Any],
+    source_name: str,
+    now_iso: str,
+) -> Dict[str, Any]:
+    """
+    Map a structured contest record (Prompts.txt schema) to a normalized dict
+    ready for upsert into the Contests collection.
+
+    Shared between submit_structured_records and submit_full_generation to
+    avoid duplicating ~80 lines of field-mapping logic.
+
+    Args:
+        record: A raw contest dict following Prompts.txt v4.0 schema
+        source_name: The dedup source name (from source.name)
+        now_iso: ISO timestamp to use for updatedAt
+
+    Returns:
+        Normalized dict with fields mapped to Contests collection schema
+    """
+    title = record.get("title", "")
+    link = record.get("link", "")
+    source_obj = record.get("source", {})
+
+    normalized: Dict[str, Any] = {
+        "title": title,
+        "link": link,
+        "updatedAt": now_iso,
+    }
+
+    # type — Prompts.txt: "contest" | "hackathon" | "grant" | "fellowship" | "award" | "challenge"
+    if record.get("type") in (
+        "contest", "hackathon", "grant", "fellowship", "award", "challenge",
+    ):
+        normalized["type"] = record["type"]
+
+    # flags — Prompts.txt: ["women"] for women-exclusive contests
+    flags = record.get("flags", [])
+    if isinstance(flags, list) and any(f in ("women",) for f in flags):
+        normalized["flags"] = [f for f in flags if f in ("women",)]
+
+    # Simple string fields
+    if "description" in record and record["description"]:
+        normalized["description"] = record["description"]
+    if "rawCategory" in record and record["rawCategory"]:
+        normalized["rawCategory"] = record["rawCategory"]
+    if "category" in record and record["category"]:
+        normalized["category"] = record["category"]
+
+    # source
+    if isinstance(source_obj, dict):
+        source_field: Dict[str, Any] = {}
+        if source_obj.get("name"):
+            source_field["name"] = source_obj["name"]
+        if source_obj.get("url"):
+            source_field["url"] = source_obj["url"]
+        if source_obj.get("type"):
+            source_field["type"] = source_obj["type"]
+        if source_field:
+            normalized["source"] = source_field
+    else:
+        normalized["source"] = {"name": source_name}
+
+    # image
+    image = record.get("image")
+    if isinstance(image, dict):
+        image_field: Dict[str, Any] = {}
+        primary = image.get("primary", {})
+        if isinstance(primary, dict) and primary.get("url"):
+            image_field["primary"] = {
+                "url": primary["url"],
+                "status": primary.get("status", "active"),
+            }
+            if image_field:
+                normalized["image"] = image_field
+        elif image.get("url"):
+            normalized["image"] = {"primary": {"url": image["url"], "status": "active"}}
+
+    # entry
+    entry = record.get("entry")
+    if isinstance(entry, dict):
+        entry_field: Dict[str, Any] = {}
+        if entry.get("isFree") is not None:
+            entry_field["isFree"] = entry["isFree"]
+        fee = entry.get("fee")
+        if isinstance(fee, dict):
+            fee_field: Dict[str, Any] = {}
+            if fee.get("amount") is not None:
+                fee_field["amount"] = fee["amount"]
+            if fee.get("currency"):
+                fee_field["currency"] = fee["currency"]
+            if fee_field:
+                entry_field["fee"] = fee_field
+        if entry.get("feeConfidence"):
+            entry_field["feeConfidence"] = entry["feeConfidence"]
+        if entry.get("feeNote"):
+            entry_field["feeNote"] = entry["feeNote"]
+        if entry_field:
+            normalized["entry"] = entry_field
+
+    # prize
+    prize = record.get("prize")
+    if isinstance(prize, dict):
+        prize_field: Dict[str, Any] = {}
+        if prize.get("isMonetary") is not None:
+            prize_field["isMonetary"] = prize["isMonetary"]
+        if prize.get("originalAmount") is not None:
+            prize_field["originalAmount"] = prize["originalAmount"]
+        if prize.get("totalUSD") is not None:
+            prize_field["totalUSD"] = prize["totalUSD"]
+        if prize.get("currency"):
+            prize_field["currency"] = prize["currency"]
+        if prize.get("prizeSummary"):
+            prize_field["prizeSummary"] = prize["prizeSummary"]
+        if prize.get("description"):
+            prize_field["description"] = prize["description"]
+        if prize_field:
+            normalized["prize"] = prize_field
+
+    # audience
+    audience = record.get("audience")
+    if isinstance(audience, dict):
+        audience_field: Dict[str, Any] = {}
+        if audience.get("skillLevels"):
+            audience_field["skillLevels"] = audience["skillLevels"]
+        if audience.get("primarySkillLevel"):
+            audience_field["primarySkillLevel"] = audience["primarySkillLevel"]
+        age = audience.get("age")
+        if isinstance(age, dict):
+            age_field: Dict[str, Any] = {}
+            if age.get("min") is not None:
+                age_field["min"] = age["min"]
+            if age.get("max") is not None:
+                age_field["max"] = age["max"]
+            if age_field:
+                audience_field["age"] = age_field
+        if audience.get("eligibilityLabel"):
+            audience_field["eligibilityLabel"] = audience["eligibilityLabel"]
+        if audience.get("eligibilityDetail"):
+            audience_field["eligibilityDetail"] = audience["eligibilityDetail"]
+        constraints = audience.get("constraints")
+        if isinstance(constraints, dict):
+            constraints_field: Dict[str, Any] = {}
+            for key in (
+                "participantType", "academicStatus",
+                "graduationAfter", "organizationFoundedAfter",
+            ):
+                if constraints.get(key) is not None:
+                    constraints_field[key] = constraints[key]
+            team_size = constraints.get("teamSize")
+            if isinstance(team_size, dict):
+                ts_field: Dict[str, Any] = {}
+                if team_size.get("min") is not None:
+                    ts_field["min"] = team_size["min"]
+                if team_size.get("max") is not None:
+                    ts_field["max"] = team_size["max"]
+                if ts_field:
+                    constraints_field["teamSize"] = ts_field
+            if constraints_field:
+                audience_field["constraints"] = constraints_field
+        if audience.get("location"):
+            audience_field["location"] = audience["location"]
+        if audience.get("mode"):
+            audience_field["mode"] = audience["mode"]
+        if audience_field:
+            normalized["audience"] = audience_field
+
+    # timeline
+    timeline = record.get("timeline")
+    if isinstance(timeline, dict):
+        timeline_field: Dict[str, Any] = {}
+        for key in (
+            "startDateUTC", "submissionDeadlineUTC",
+            "eventEndUTC", "organizerTimeZone",
+        ):
+            if timeline.get(key):
+                timeline_field[key] = timeline[key]
+        if timeline_field:
+            normalized["timeline"] = timeline_field
+
+    # tags
+    tags = record.get("tags", [])
+    if isinstance(tags, list) and tags:
+        try:
+            from tools.tag_normalizer import normalize_tags_array
+            normalized["tags"] = normalize_tags_array(tags, max_tags=6)
+        except Exception:
+            normalized["tags"] = tags[:6]
+
+    # filterKeys
+    filter_keys = record.get("filterKeys")
+    if isinstance(filter_keys, dict):
+        fk_field: Dict[str, Any] = {}
+        if filter_keys.get("domain"):
+            fk_field["domain"] = filter_keys["domain"]
+        if filter_keys.get("format"):
+            fk_field["format"] = filter_keys["format"]
+        if filter_keys.get("medium"):
+            fk_field["medium"] = filter_keys["medium"]
+        if filter_keys.get("themes"):
+            fk_field["themes"] = filter_keys["themes"]
+        if fk_field:
+            normalized["filterKeys"] = fk_field
+
+    # slug
+    if "slug" in record and record["slug"]:
+        normalized["slug"] = record["slug"]
+
+    # derived status from deadline
+    normalized["status"] = "open"
+
+    return normalized
+
+
 # ---------------------------------------------------------------------------
 # Raw Data Processing Tools (bridge CHRawdata.rawdata -> ContestHopperDb.Contests)
 # ---------------------------------------------------------------------------
@@ -1265,7 +1479,6 @@ def submit_structured_records(
 
         from pymongo import UpdateOne
         from config.mongodb import db
-        from tools.tag_normalizer import normalize_tags_array
 
         target_collection = db[os.getenv("COLLECTION_NAME", "Contests")]
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -1296,200 +1509,7 @@ def submit_structured_records(
                 source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
             )
 
-            normalized = {
-                "title": title,
-                "link": link,
-                "updatedAt": now_iso,
-            }
-
-            # type — Prompts.txt: "contest" | "hackathon" | "grant" | "fellowship" | "award" | "challenge"
-            if record.get("type") in (
-                "contest",
-                "hackathon",
-                "grant",
-                "fellowship",
-                "award",
-                "challenge",
-            ):
-                normalized["type"] = record["type"]
-
-            # flags — Prompts.txt: ["women"] for women-exclusive contests
-            flags = record.get("flags", [])
-            if isinstance(flags, list) and any(f in ("women",) for f in flags):
-                normalized["flags"] = [f for f in flags if f in ("women",)]
-
-            # Map Prompts.txt fields to Contests collection schema
-            if "description" in record and record["description"]:
-                normalized["description"] = record["description"]
-            if "rawCategory" in record and record["rawCategory"]:
-                normalized["rawCategory"] = record["rawCategory"]
-            if "category" in record and record["category"]:
-                normalized["category"] = record["category"]
-
-            # source
-            if isinstance(source_obj, dict):
-                source_field = {}
-                if source_obj.get("name"):
-                    source_field["name"] = source_obj["name"]
-                if source_obj.get("url"):
-                    source_field["url"] = source_obj["url"]
-                if source_obj.get("type"):
-                    source_field["type"] = source_obj["type"]
-                if source_field:
-                    normalized["source"] = source_field
-            else:
-                normalized["source"] = {"name": source_name}
-
-            # image
-            image = record.get("image")
-            if isinstance(image, dict):
-                image_field = {}
-                primary = image.get("primary", {})
-                if isinstance(primary, dict) and primary.get("url"):
-                    image_field["primary"] = {
-                        "url": primary["url"],
-                        "status": primary.get("status", "active"),
-                    }
-                    if image_field:
-                        normalized["image"] = image_field
-                elif image.get("url"):
-                    normalized["image"] = {"primary": {"url": image["url"], "status": "active"}}
-
-            # entry
-            entry = record.get("entry")
-            if isinstance(entry, dict):
-                entry_field = {}
-                if entry.get("isFree") is not None:
-                    entry_field["isFree"] = entry["isFree"]
-                fee = entry.get("fee")
-                if isinstance(fee, dict):
-                    fee_field = {}
-                    if fee.get("amount") is not None:
-                        fee_field["amount"] = fee["amount"]
-                    if fee.get("currency"):
-                        fee_field["currency"] = fee["currency"]
-                    if fee_field:
-                        entry_field["fee"] = fee_field
-                if entry.get("feeConfidence"):
-                    entry_field["feeConfidence"] = entry["feeConfidence"]
-                if entry.get("feeNote"):
-                    entry_field["feeNote"] = entry["feeNote"]
-                if entry_field:
-                    normalized["entry"] = entry_field
-
-            # prize
-            prize = record.get("prize")
-            if isinstance(prize, dict):
-                prize_field = {}
-                if prize.get("isMonetary") is not None:
-                    prize_field["isMonetary"] = prize["isMonetary"]
-                if prize.get("originalAmount") is not None:
-                    prize_field["originalAmount"] = prize["originalAmount"]
-                if prize.get("totalUSD") is not None:
-                    prize_field["totalUSD"] = prize["totalUSD"]
-                if prize.get("currency"):
-                    prize_field["currency"] = prize["currency"]
-                if prize.get("prizeSummary"):
-                    prize_field["prizeSummary"] = prize["prizeSummary"]
-                if prize.get("description"):
-                    prize_field["description"] = prize["description"]
-                if prize_field:
-                    normalized["prize"] = prize_field
-
-            # audience
-            audience = record.get("audience")
-            if isinstance(audience, dict):
-                audience_field = {}
-                if audience.get("skillLevels"):
-                    audience_field["skillLevels"] = audience["skillLevels"]
-                if audience.get("primarySkillLevel"):
-                    audience_field["primarySkillLevel"] = audience["primarySkillLevel"]
-                age = audience.get("age")
-                if isinstance(age, dict):
-                    age_field = {}
-                    if age.get("min") is not None:
-                        age_field["min"] = age["min"]
-                    if age.get("max") is not None:
-                        age_field["max"] = age["max"]
-                    if age_field:
-                        audience_field["age"] = age_field
-                if audience.get("eligibilityLabel"):
-                    audience_field["eligibilityLabel"] = audience["eligibilityLabel"]
-                if audience.get("eligibilityDetail"):
-                    audience_field["eligibilityDetail"] = audience["eligibilityDetail"]
-                constraints = audience.get("constraints")
-                if isinstance(constraints, dict):
-                    constraints_field = {}
-                    for key in (
-                        "participantType",
-                        "academicStatus",
-                        "graduationAfter",
-                        "organizationFoundedAfter",
-                    ):
-                        if constraints.get(key) is not None:
-                            constraints_field[key] = constraints[key]
-                    team_size = constraints.get("teamSize")
-                    if isinstance(team_size, dict):
-                        ts_field = {}
-                        if team_size.get("min") is not None:
-                            ts_field["min"] = team_size["min"]
-                        if team_size.get("max") is not None:
-                            ts_field["max"] = team_size["max"]
-                        if ts_field:
-                            constraints_field["teamSize"] = ts_field
-                    if constraints_field:
-                        audience_field["constraints"] = constraints_field
-                if audience.get("location"):
-                    audience_field["location"] = audience["location"]
-                if audience.get("mode"):
-                    audience_field["mode"] = audience["mode"]
-                if audience_field:
-                    normalized["audience"] = audience_field
-
-            # timeline
-            timeline = record.get("timeline")
-            if isinstance(timeline, dict):
-                timeline_field = {}
-                for key in (
-                    "startDateUTC",
-                    "submissionDeadlineUTC",
-                    "eventEndUTC",
-                    "organizerTimeZone",
-                ):
-                    if timeline.get(key):
-                        timeline_field[key] = timeline[key]
-                if timeline_field:
-                    normalized["timeline"] = timeline_field
-
-            # tags
-            tags = record.get("tags", [])
-            if isinstance(tags, list) and tags:
-                try:
-                    normalized["tags"] = normalize_tags_array(tags, max_tags=6)
-                except Exception:
-                    normalized["tags"] = tags[:6]
-
-            # filterKeys
-            filter_keys = record.get("filterKeys")
-            if isinstance(filter_keys, dict):
-                fk_field = {}
-                if filter_keys.get("domain"):
-                    fk_field["domain"] = filter_keys["domain"]
-                if filter_keys.get("format"):
-                    fk_field["format"] = filter_keys["format"]
-                if filter_keys.get("medium"):
-                    fk_field["medium"] = filter_keys["medium"]
-                if filter_keys.get("themes"):
-                    fk_field["themes"] = filter_keys["themes"]
-                if fk_field:
-                    normalized["filterKeys"] = fk_field
-
-            # slug
-            if "slug" in record and record["slug"]:
-                normalized["slug"] = record["slug"]
-
-            # derived status from deadline
-            normalized["status"] = "open"
+            normalized = _build_normalized_record(record, source_name, now_iso)
 
             # Compute dedup key
             dedup_source = source_name if source_name else "unknown"
@@ -1701,7 +1721,6 @@ def submit_full_generation(
         from pymongo import UpdateOne
         from bson.objectid import ObjectId
         from config.mongodb import db
-        from tools.tag_normalizer import normalize_tags_array
 
         target_collection = db[os.getenv("COLLECTION_NAME", "Contests")]
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -1740,187 +1759,7 @@ def submit_full_generation(
                 source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
             )
 
-            normalized = {
-                "title": title,
-                "link": link,
-                "updatedAt": now_iso,
-            }
-
-            # Copy fields from record (same logic as submit_structured_records)
-            if record.get("type") in (
-                "contest", "hackathon", "grant", "fellowship", "award", "challenge",
-            ):
-                normalized["type"] = record["type"]
-
-            flags = record.get("flags", [])
-            if isinstance(flags, list) and any(f in ("women",) for f in flags):
-                normalized["flags"] = [f for f in flags if f in ("women",)]
-
-            if "description" in record and record["description"]:
-                normalized["description"] = record["description"]
-            if "rawCategory" in record and record["rawCategory"]:
-                normalized["rawCategory"] = record["rawCategory"]
-            if "category" in record and record["category"]:
-                normalized["category"] = record["category"]
-
-            # source
-            if isinstance(source_obj, dict):
-                source_field = {}
-                if source_obj.get("name"):
-                    source_field["name"] = source_obj["name"]
-                if source_obj.get("url"):
-                    source_field["url"] = source_obj["url"]
-                if source_obj.get("type"):
-                    source_field["type"] = source_obj["type"]
-                if source_field:
-                    normalized["source"] = source_field
-            else:
-                normalized["source"] = {"name": source_name}
-
-            # image
-            image = record.get("image")
-            if isinstance(image, dict):
-                image_field = {}
-                primary = image.get("primary", {})
-                if isinstance(primary, dict) and primary.get("url"):
-                    image_field["primary"] = {
-                        "url": primary["url"],
-                        "status": primary.get("status", "active"),
-                    }
-                if image_field:
-                    normalized["image"] = image_field
-                elif image.get("url"):
-                    normalized["image"] = {"primary": {"url": image["url"], "status": "active"}}
-
-            # entry
-            entry = record.get("entry")
-            if isinstance(entry, dict):
-                entry_field = {}
-                if entry.get("isFree") is not None:
-                    entry_field["isFree"] = entry["isFree"]
-                fee = entry.get("fee")
-                if isinstance(fee, dict):
-                    fee_field = {}
-                    if fee.get("amount") is not None:
-                        fee_field["amount"] = fee["amount"]
-                    if fee.get("currency"):
-                        fee_field["currency"] = fee["currency"]
-                    if fee_field:
-                        entry_field["fee"] = fee_field
-                if entry.get("feeConfidence"):
-                    entry_field["feeConfidence"] = entry["feeConfidence"]
-                if entry.get("feeNote"):
-                    entry_field["feeNote"] = entry["feeNote"]
-                if entry_field:
-                    normalized["entry"] = entry_field
-
-            # prize
-            prize = record.get("prize")
-            if isinstance(prize, dict):
-                prize_field = {}
-                if prize.get("isMonetary") is not None:
-                    prize_field["isMonetary"] = prize["isMonetary"]
-                if prize.get("originalAmount") is not None:
-                    prize_field["originalAmount"] = prize["originalAmount"]
-                if prize.get("totalUSD") is not None:
-                    prize_field["totalUSD"] = prize["totalUSD"]
-                if prize.get("currency"):
-                    prize_field["currency"] = prize["currency"]
-                if prize.get("prizeSummary"):
-                    prize_field["prizeSummary"] = prize["prizeSummary"]
-                if prize.get("description"):
-                    prize_field["description"] = prize["description"]
-                if prize_field:
-                    normalized["prize"] = prize_field
-
-            # audience
-            audience = record.get("audience")
-            if isinstance(audience, dict):
-                audience_field = {}
-                if audience.get("skillLevels"):
-                    audience_field["skillLevels"] = audience["skillLevels"]
-                if audience.get("primarySkillLevel"):
-                    audience_field["primarySkillLevel"] = audience["primarySkillLevel"]
-                age = audience.get("age")
-                if isinstance(age, dict):
-                    age_field = {}
-                    if age.get("min") is not None:
-                        age_field["min"] = age["min"]
-                    if age.get("max") is not None:
-                        age_field["max"] = age["max"]
-                    if age_field:
-                        audience_field["age"] = age_field
-                if audience.get("eligibilityLabel"):
-                    audience_field["eligibilityLabel"] = audience["eligibilityLabel"]
-                if audience.get("eligibilityDetail"):
-                    audience_field["eligibilityDetail"] = audience["eligibilityDetail"]
-                constraints = audience.get("constraints")
-                if isinstance(constraints, dict):
-                    constraints_field = {}
-                    for key in (
-                        "participantType", "academicStatus",
-                        "graduationAfter", "organizationFoundedAfter",
-                    ):
-                        if constraints.get(key) is not None:
-                            constraints_field[key] = constraints[key]
-                    team_size = constraints.get("teamSize")
-                    if isinstance(team_size, dict):
-                        ts_field = {}
-                        if team_size.get("min") is not None:
-                            ts_field["min"] = team_size["min"]
-                        if team_size.get("max") is not None:
-                            ts_field["max"] = team_size["max"]
-                        if ts_field:
-                            constraints_field["teamSize"] = ts_field
-                    if constraints_field:
-                        audience_field["constraints"] = constraints_field
-                if audience.get("location"):
-                    audience_field["location"] = audience["location"]
-                if audience.get("mode"):
-                    audience_field["mode"] = audience["mode"]
-                if audience_field:
-                    normalized["audience"] = audience_field
-
-            # timeline
-            timeline = record.get("timeline")
-            if isinstance(timeline, dict):
-                timeline_field = {}
-                for key in (
-                    "startDateUTC", "submissionDeadlineUTC",
-                    "eventEndUTC", "organizerTimeZone",
-                ):
-                    if timeline.get(key):
-                        timeline_field[key] = timeline[key]
-                if timeline_field:
-                    normalized["timeline"] = timeline_field
-
-            # tags
-            tags = record.get("tags", [])
-            if isinstance(tags, list) and tags:
-                try:
-                    normalized["tags"] = normalize_tags_array(tags, max_tags=6)
-                except Exception:
-                    normalized["tags"] = tags[:6]
-
-            # filterKeys
-            filter_keys = record.get("filterKeys")
-            if isinstance(filter_keys, dict):
-                fk_field = {}
-                if filter_keys.get("domain"):
-                    fk_field["domain"] = filter_keys["domain"]
-                if filter_keys.get("format"):
-                    fk_field["format"] = filter_keys["format"]
-                if filter_keys.get("medium"):
-                    fk_field["medium"] = filter_keys["medium"]
-                if filter_keys.get("themes"):
-                    fk_field["themes"] = filter_keys["themes"]
-                if fk_field:
-                    normalized["filterKeys"] = fk_field
-
-            if "slug" in record and record["slug"]:
-                normalized["slug"] = record["slug"]
-
-            normalized["status"] = "open"
+            normalized = _build_normalized_record(record, source_name, now_iso)
 
             # Dedup key for upsert
             dedup_source = source_name if source_name else "unknown"
