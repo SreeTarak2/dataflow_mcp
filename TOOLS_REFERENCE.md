@@ -731,8 +731,8 @@ Parameters: generation_json: (AI output from Step 3)
 
 ### Step 5: Verify
 ```bash
-Tool: get_contest_details_status  # Check overall detail coverage
-Tool: read_collection("contest_details", filter, limit=1)  # Inspect specific
+Tool: read_collection("contest_details", filter, limit=1)  # Inspect saved details
+Tool: get_document("Contests", document_id)  # Check contest was created/updated
 ```
 
 ---
