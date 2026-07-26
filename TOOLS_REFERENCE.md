@@ -471,3 +471,316 @@ contest_id: "65f8a1b2c3d4e5f6g7h8i9j0"
 ---
 
 **Ready to migrate? Start with `get_migration_status` to see your current state! 🚀**
+
+---
+
+# 🚀 Full Generation Pipeline (Raw → Structured + Details in One Pass)
+
+Two new tools that bridge the gap between raw scraped data and fully published contest details in a single AI round-trip.
+
+---
+
+## 5️⃣ **get_records_for_full_generation**
+
+### Purpose
+Fetch raw scraped records + BOTH prompts (Prompts.txt for structuring + Prompts-contest-details.txt for marketing copy) so a chatbot can structure AND generate contest details in one pass.
+
+### Parameters
+- `source` (string, optional) — Filter by scraper source (e.g. "contestwatchers", "opportunityDesk"). If omitted, all sources.
+- `limit` (integer, 1-10, default 3) — Maximum raw records to fetch. Lower limit recommended since each record requires full structuring + web research + detail generation.
+- `require_validated` (boolean, default false) — If true, only fetch records with validationStatus="validated".
+
+### Example Call
+```bash
+Tool: get_records_for_full_generation
+Parameters:
+  source: "contestwatchers"
+  limit: 3
+  require_validated: false
+```
+
+### Example Response (abbreviated)
+```json
+{
+  "success": true,
+  "record_count": 3,
+  "records": [
+    {
+      "_id": "65f8a1b2c3d4e5f6g7h8i9j0",
+      "title": "2026 Global Innovation Challenge",
+      "url": "https://example.com/challenge",
+      "source": "contestwatchers",
+      "scrapedAt": "2026-07-25T10:00:00Z"
+    },
+    ... 2 more records ...
+  ],
+  "structuring_prompt_name": "Prompts.txt",
+  "structuring_prompt": "(full Prompts.txt content)",
+  "details_prompt_name": "Prompts-contest-details.txt",
+  "details_prompt": "(full Prompts-contest-details.txt content)",
+  "usage": {
+    "purpose": "Send each record to your LLM with BOTH prompts. First structure using Prompts.txt, then research and generate details using Prompts-contest-details.txt.",
+    "expected_output": "A JSON object with 'items' array, each item having 'record' and 'details'. Submit via submit_full_generation."
+  }
+}
+```
+
+### What's in the Response
+- ✅ Raw scraper records (with URLs for the AI to research)
+- ✅ Full Prompts.txt content (structuring schema & rules)
+- ✅ Full Prompts-contest-details.txt content (detail generation rules)
+- ✅ Usage instructions telling the AI what to return
+
+### When to Use
+- **Fast path:** Raw → published in one pass (instead of get_records_for_structuring → submit_structured_records → get_contests_for_detail_generation → submit_contest_details)
+- **New sources:** First batch from a new scraper
+- **Quick turnarounds:** When you want full contest pages generated quickly
+
+### Limitations
+- ❌ Max 10 records per call (AI has to do structing + research + detail gen for each)
+- ❌ No dedup against existing contest_details (details are always versioned)
+
+---
+
+## 6️⃣ **submit_full_generation**
+
+### Purpose
+Submit a full generation result that includes BOTH structured contest data AND contest details in one call. This tool:
+1. Upserts each structured record into the Contests collection (same dedup logic as submit_structured_records)
+2. Finds the resulting contest `_id` by dedup key (source.name + title)
+3. Validates and saves contest_details for each
+
+### Parameters
+- `generation_json` (string) — JSON string with an `items` array, where each item has:
+  - `record`: Structured contest data following Prompts.txt v4.0 schema
+  - `details`: Contest details following Prompts-contest-details.txt schema
+
+### Example Call
+```bash
+Tool: submit_full_generation
+Parameters:
+  generation_json: '{
+    "items": [
+      {
+        "record": {
+          "title": "2026 Global Innovation Challenge",
+          "link": "https://example.com/challenge",
+          "type": "contest",
+          "source": {"name": "contestwatchers"},
+          "category": "Technology & AI",
+          "prize": {
+            "isMonetary": true,
+            "totalUSD": 50000,
+            "prizeSummary": "Cash prizes totaling $50,000"
+          },
+          "audience": {
+            "eligibilityLabel": "Open to innovators worldwide",
+            "location": "Worldwide"
+          },
+          "timeline": {
+            "submissionDeadlineUTC": "2026-12-31T23:59:59"
+          }
+        },
+        "details": {
+          "content": {
+            "hero": {
+              "subheadline": "A $50,000 competition for global innovators",
+              "valueProposition": "Solve real-world challenges and win funding"
+            },
+            "whyJoin": "This challenge brings together...",
+            "whoShouldApply": "Ideal for tech entrepreneurs...",
+            "benefits": ["$50,000 grand prize", "Global recognition", "Mentorship program"],
+            "tips": ["Focus on scalability", "Include a working prototype"],
+            "shouldYouApply": {
+              "idealFor": "Early-stage startups with a working prototype",
+              "goodFit": ["Have a MVP ready", "Team of 2+"],
+              "notIdealFor": ["Idea-stage only", "Solo founders without technical co-founder"]
+            },
+            "readingTime": 3
+          },
+          "seo": {
+            "metaTitle": "2026 Global Innovation Challenge - Apply Now",
+            "metaDescription": "$50,000 prize for innovators solving global challenges. Open worldwide.",
+            "keywords": ["innovation", "startup", "challenge", "funding"]
+          }
+        }
+      }
+    ]
+  }'
+```
+
+### Example Response
+```json
+{
+  "success": true,
+  "total_items": 1,
+  "successful": 1,
+  "errors": 0,
+  "results": [
+    {
+      "index": 0,
+      "contest_id": "65f8a1b2c3d4e5f6g7h8i9j0",
+      "is_new": true,
+      "title": "2026 Global Innovation Challenge",
+      "details_saved": true,
+      "version": 1
+    }
+  ],
+  "error_details": []
+}
+```
+
+### What Happens Under the Hood
+1. Parses the `items` array
+2. For each item:
+   - Validates required fields (title, link)
+   - Maps the `record` to Contests schema via `_build_normalized_record` (same as submit_structured_records)
+   - Upserts into Contests collection (dedup by source.name + title)
+   - Queries the contest `_id` from the upsert
+   - Validates the `details` content (quality checks)
+   - Saves contest_details with automatic versioning
+3. Returns per-item results + summary
+
+### Important Notes
+- ✅ Partial failures OK — each item is processed independently
+- ✅ Record is saved to Contests even if details generation fails
+- ✅ Details are versioned — a bad version can be superseded
+- ❌ `record` must have `title` and `link` (required fields)
+- ❌ `details` must have meaningful content (>50 words across sections)
+
+### When to Use
+- **After get_records_for_full_generation:** Submit the AI's combined output
+- **Bulk imports:** Process multiple contests in one call
+
+### Speed Comparison vs. Separate Pipeline
+
+| Approach | 3 Contests | 10 Contests |
+|----------|-----------|------------|
+| Separate (structuring → details) | 2 AI calls + 2 submit calls | 2 AI calls + 2 submit calls |
+| Full Generation (combined) | 1 AI call + 1 submit call | 1 AI call + 1 submit call |
+
+**Bottleneck:** AI research & generation time, not server processing
+
+---
+
+## 🆚 Full Generation vs. Separate Pipeline
+
+### Separate Pipeline (original)
+```
+1. get_records_for_structuring → AI structures → submit_structured_records
+2. get_contests_for_detail_generation → AI researches → submit_contest_details
+```
+- ✅ Each step has focused prompts and validation
+- ✅ Easier to debug (each step produces independent output)
+- ❌ Two AI round-trips per contest
+- ❌ Only works with contests already in Contests collection
+
+### Full Generation (new)
+```
+1. get_records_for_full_generation → AI structures + researches → submit_full_generation
+```
+- ✅ One AI round-trip from raw to published
+- ✅ Works directly with raw scraped data
+- ✅ Both prompts available simultaneously (AI can cross-reference)
+- ❌ More work per AI call (longer context, more instructions)
+- ❌ Higher quality variance (AI has to do everything at once)
+
+**Recommendation:** Use full generation for speed, separate pipeline for quality control.
+
+---
+
+## 🔄 Complete Full Generation Workflow
+
+### Step 1: Check What's Available
+```bash
+Tool: get_scraped_overview
+→ See which sources have raw data ready
+```
+
+### Step 2: Fetch Records + Both Prompts
+```bash
+Tool: get_records_for_full_generation
+Parameters: source="contestwatchers", limit=3
+→ Response: 3 records + Prompts.txt + Prompts-contest-details.txt
+```
+
+### Step 3: AI Structures + Generates Details
+**Input to AI (one call):**
+- Raw record data
+- Prompts.txt (structuring schema)
+- Prompts-contest-details.txt (detail generation rules)
+
+**Expected Output:**
+```json
+{
+  "items": [
+    {
+      "record": { ... structured contest data ... },
+      "details": { ... contest details ... }
+    }
+  ]
+}
+```
+
+### Step 4: Submit Both at Once
+```bash
+Tool: submit_full_generation
+Parameters: generation_json: (AI output from Step 3)
+→ Response: Contest saved to Contests + contest_details created with version 1
+```
+
+### Step 5: Verify
+```bash
+Tool: get_contest_details_status  # Check overall detail coverage
+Tool: read_collection("contest_details", filter, limit=1)  # Inspect specific
+```
+
+---
+
+## 💡 Pro Tips
+
+### When to Use Full Generation vs. Separate
+```
+USE FULL GENERATION:
+- New scraper sources (no existing Contests data)
+- Prototyping / exploring new data
+- Quick volume: need many detail pages fast
+- Single-pass workflows
+
+USE SEPARATE PIPELINE:
+- Existing contests needing detail pages
+- Quality-critical: want focused prompts
+- Debugging: need to isolate issues
+- When humans review each step
+```
+
+### Rate Limiting
+```
+Same as other tools: 100 req/min shared pool
+Full generation is 1 call vs 2 calls + 2 submits = 4 calls
+→ 75% fewer MCP calls compared to separate pipeline
+```
+
+### Error Recovery
+```
+If submit_full_generation reports failures:
+1. Check error_details for specific items
+2. Fix the issue (e.g. missing title/link, sparse details)
+3. Re-run with just the failed items
+4. Idempotent — re-running successful items just updates them
+```
+
+---
+
+## 📊 Tool Summary
+
+| # | Tool | Input | Output | Pipeline |
+|---|------|-------|--------|----------|
+| 1 | get_migration_status | None | Migration progress | Migration |
+| 2 | get_contests_for_migration | batch_size, skip | Contests needing patches | Migration |
+| 3 | apply_migration_patch | contest_id, patch_json | Single contest updated | Migration |
+| 4 | bulk_apply_migrations | migrations_json | Multiple contests updated | Migration |
+| **5** | **get_records_for_full_generation** | source, limit, require_validated | Raw records + both prompts | **Full Generation** |
+| **6** | **submit_full_generation** | generation_json | Contest + details saved | **Full Generation** |
+
+**New:** Tools #5 and #6 are the Full Generation Pipeline — raw → published in one pass.
