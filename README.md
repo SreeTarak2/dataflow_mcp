@@ -200,17 +200,54 @@ LOG_LEVEL=INFO                  # Logging level
 
 ```
 dataflow_mcp/
-├── config/
-│   ├── mongodb.py           # MongoDB connection with pooling
-│   ├── security.py          # Validation and rate limiting
-│   └── logging_config.py    # Logging setup
+├── core.py            # FastMCP instance, rate limiter, metrics, prompt loading, normalization
+├── server.py          # tool registration + mcp.run()
 ├── tools/
-│   └── data_manager.py      # CRUD operations and update logic (DataManager)
-├── scripts/
-├── main.py                  # MCP server and tools
-├── pyproject.toml          # Dependencies and config
-└── .env.example            # Environment template
+│   ├── health.py      # health_check, database_status
+│   ├── crud.py        # generic MongoDB CRUD tools
+│   ├── images.py      # contest banner pipeline (missing/broken images, cover prompts)
+│   ├── migration.py   # v4.0 schema migration/backfill tools
+│   ├── contests.py    # structuring + full generation + detail generation
+│   ├── events.py      # events pipeline (fetch → structure → submit → query)
+│   ├── raw_data.py    # raw scraped data bridge + overview
+│   ├── validation.py  # chatbot-driven web validation pipeline
+│   └── audit.py       # duplicate audit + discrepancy flagging
+config/
+├── mongodb.py           # MongoDB connection with pooling
+├── security.py          # Validation and rate limiting
+└── logging_config.py    # Logging setup
+tools/                   # service layer (DataManager, generators, dedup gate, validators)
+prompts/                 # prompt files (descriptive names + Prompts*.txt aliases)
+main.py                  # thin entry point → dataflow_mcp.server
+├── pyproject.toml      # Dependencies and config (console script: dataflow-mcp)
+└── .env.example        # Environment template
 ```
+
+## 🎪 Events Pipeline
+
+The MCP server includes a full events pipeline so AI chatbots can harvest and
+structure participatory events (conferences, summits, workshops, webinars,
+meetups, trainings, …):
+
+```
+1. get_records_for_events(source=..., limit=10)  → raw URLs + events-v1.1 prompt
+2. [chatbot researches each URL and outputs event JSON]
+3. submit_structured_events(events_json)         → persists to the Events collection
+4. get_events(event_type=..., upcoming_only=true) → read structured events back
+5. get_events_overview()                          → counts by type/status
+6. get_events_for_detail_generation(batch_size=10) → events + event-details-v1.0.txt prompt
+7. [chatbot researches and writes event details]
+8. submit_event_details(event_id, details_json)  → versioned event_details saved
+9. get_event_detail_status()                       → coverage metrics (remaining events to generate)
+```
+
+Event **detail pages** mirror the contest detail flow: `EventDetailGenerator`
+(`tools/event_detail_generator.py`) provides the priority queue, quality
+validation, and versioned `event_details` storage.
+
+Prompt files were renamed to descriptive names (`contest-structuring-v4.0.txt`,
+`event-structuring-v1.1.txt`, …) with the old `Prompts*.txt` names kept as
+aliases. See `TOOLS_REFERENCE.md` for the full tool reference.
 
 ## 🔧 Configuration for Cloud Deployment
 

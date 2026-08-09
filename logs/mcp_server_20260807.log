@@ -1,0 +1,11 @@
+2026-08-07 11:28:52 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:49:07 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:49:24 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:49:34 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:49:47 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:49:59 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:53:28 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 20:53:29 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 21:00:26 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 21:03:08 - config.mongodb - INFO - ✓ MongoDB client initialized successfully
+2026-08-07 21:03:09 - dataflow_mcp.core - INFO - Building event detail generation bundle (batch_size=3, skip=0)

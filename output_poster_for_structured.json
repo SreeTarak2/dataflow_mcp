@@ -1,0 +1,98 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/poster-for___-international-poster-competition-5th-edition/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Graphic Design",
+  "category": "Creative Arts",
+  "subCategory": "Graphic Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/05/Poster-for-International-Poster-Competition-5th-Edition.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Poster for___ International Poster Competition – 5th Edition"
+  },
+  "title": "Poster for___. International Poster Competition – 5th Edition",
+  "description": "Submit a poster on climate, technology, art, culture, or UN SDG topics for the 5th Poster For competition.",
+  "descriptionDetailed": "Poster For's 5th International Poster Competition invites designers worldwide to submit posters on Climate, Technology, Art, Culture, or the 17 UN SDGs, plus a hand-drawn category for under-19s. Submissions cost $40 and golden winners get a trophy. Over 200 designers receive certificates, with selected posters on the Times Square billboard.",
+  "link": "https://www.posterfor.com/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 40,
+      "currency": "USD"
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": "$40 per submission; the number of submissions is unlimited"
+  },
+  "prize": {
+    "isMonetary": false,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": "Trophy, certificate, and Times Square billboard exhibition",
+    "description": "The golden winner in each category is awarded with a trophy. More than 200 awarded and selected designers receive an Award Certificate via email. Selected posters are exhibited on the Times Square billboard in New York City, with every selected entrant participating at least once, and winners are permanently showcased on the Poster For website."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For designers and artists worldwide",
+    "eligibilityDetail": "Open to designers and artists from across the globe. The hand-drawn Drawing/Art category (F) is limited to entrants under age 19.",
+    "constraints": {
+      "participantType": [
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 1
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-07-31T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "UTC"
+  },
+  "tags": [
+    "poster-design",
+    "open-call",
+    "billboard-exhibition"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "digital",
+      "physical"
+    ],
+    "themes": [
+      "climate-action",
+      "sdgs",
+      "culture"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

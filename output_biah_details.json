@@ -1,0 +1,128 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Design posters for a sustainable future, free to enter",
+      "valueProposition": "Designers worldwide submit posters on the Beyond Horizons theme, with selected works exhibited in December 2026 and the top three earning the BIAH Achievement Certificate."
+    },
+    "whyJoin": "The 7th Bolu International Poster Design Competition, organized by Bolu Abant Izzet Baysal University's Department of Graphic Arts, brings together designers from around the world on the theme Beyond Horizons: Designing a Sustainable Future. It is a free, non-profit poster competition aligned with five UN Sustainable Development Goals, offering designers a global platform to express ideas about sustainability and global responsibility.\n\nThe competition has been organized since 2019, building a public archive of international poster work across its annual editions. Selected works are exhibited in December 2026, all exhibited designers receive a digital certificate of participation, and the owners of the top three works receive the BIAH Achievement Certificate. The first-place winner also earns the right to serve as a jury member at the next BIAH event.\n\nThere is no limit on the number of posters submitted, and participation is open to everyone, making it a low-barrier way to build an international portfolio and contribute to dialogue about sustainable futures.",
+    "whoShouldApply": "This competition is for designers and visual communicators from anywhere in the world who work in poster design and want to respond to a sustainability theme. It is open to everyone with no entry fee and no age or experience restrictions, so it suits students, emerging designers, and professionals alike.\n\nIt suits designers who can create A3 vertical posters in RGB at 300dpi with text in English or English plus their native language. It is less suited to designers who do not work in poster format, since only posters related to the theme are evaluated, or those who do not want to design around the specified Sustainable Development Goals.",
+    "benefits": [
+      "Digital certificate of participation for all designers whose works are accepted for exhibition",
+      "BIAH Achievement Certificate for the top three works",
+      "Right to serve as a jury member at the next BIAH event for the first-place winner",
+      "Exhibition of selected posters in December 2026 and inclusion in the competition's international archive",
+      "No entry fee and no limit on the number of posters submitted"
+    ],
+    "tips": [
+      "Design your poster in A3 vertical format at 300dpi in RGB, and export as JPEG or JPG for submission",
+      "Make sure your poster clearly relates to the theme Beyond Horizons: Designing a Sustainable Future, since only theme-related posters are evaluated",
+      "Write the message or slogan in English, or in English combined with your native language",
+      "Choose one primary Sustainable Development Goal among SDG 4, 8, 9, 12, and 17 when submitting, since only the most prominent theme should be selected",
+      "Keep the uploaded file under the maximum size limit, and note that the submission form asks about generative AI usage in producing the poster",
+      "There is no limit on poster submission, so you can enter multiple posters if you wish"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This competition is ideal for a poster designer or visual communicator who wants to respond to a global sustainability theme, earn a certificate and possible exhibition, and build an international portfolio with no entry fee and no submission limit.",
+      "goodFit": [
+        "A graphic design student looking for a free international poster competition to build a portfolio",
+        "A professional designer who wants exhibition and certificate recognition for a sustainability-themed poster",
+        "A designer interested in the UN Sustainable Development Goals who can create work around SDG 4, 8, 9, 12, or 17",
+        "A designer who wants a low-barrier entry into an annual international design archive"
+      ],
+      "notIdealFor": [
+        "Designers who do not work in poster format, since only A3 posters related to the theme are evaluated",
+        "Anyone seeking cash prizes, since the awards are digital certificates and exhibition recognition",
+        "Designers unwilling to design to a specified sustainability theme and Sustainable Development Goals"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Is there an entry fee?",
+        "answer": "No. The competition is free to enter, and there is no limit on the number of posters a participant may submit."
+      },
+      {
+        "question": "What is the theme?",
+        "answer": "The theme is Beyond Horizons: Designing a Sustainable Future. Posters must relate to the theme and align with selected UN Sustainable Development Goals, including SDG 4, 8, 9, 12, and 17."
+      },
+      {
+        "question": "What are the technical requirements?",
+        "answer": "Posters must be A3 vertical at 300dpi in RGB, and submitted as JPEG or JPG. The message or slogan must be in English, or in the participant's native language together with English."
+      },
+      {
+        "question": "Who can participate?",
+        "answer": "Participation is open to everyone. There are no age or experience restrictions, and designers from around the world are welcome."
+      },
+      {
+        "question": "What are the prizes and certificates?",
+        "answer": "All designers whose works are accepted for exhibition receive a digital certificate of participation. The top three works receive the BIAH Achievement Certificate, and the first-place winner earns the right to serve as a jury member at the next BIAH event."
+      },
+      {
+        "question": "When is the deadline and when do results come out?",
+        "answer": "The submission phase runs from April 1 to November 1, 2026. Voting takes place November 3-6, 2026, the list of selected artists is announced, and the exhibition runs December 1-8, 2026."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Create your poster",
+        "detail": "Design an A3 vertical poster at 300dpi in RGB that interprets Beyond Horizons: Designing a Sustainable Future, with text in English or English plus your native language."
+      },
+      {
+        "step": "Choose your sub-theme",
+        "detail": "Select the most prominent Sustainable Development Goal for your poster from SDG 4, 8, 9, 12, and 17 when completing the submission form."
+      },
+      {
+        "step": "Upload your poster",
+        "detail": "Go to the Submit page on biahposter.com and upload your poster as a JPEG or JPG file within the maximum size limit, along with your photo."
+      },
+      {
+        "step": "Complete the form",
+        "detail": "Answer the submission form questions, including whether generative AI tools were used in producing the poster and at what level. This information does not affect evaluation and is used for academic purposes only."
+      },
+      {
+        "step": "Submit before the deadline",
+        "detail": "Send your poster before November 1, 2026. There is no fee and no limit on the number of posters you can submit."
+      },
+      {
+        "step": "Await results",
+        "detail": "Voting takes place November 3-6, 2026. Selected artists are announced and the exhibition runs December 1-8, 2026, with certificates sent afterward."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Submission phase",
+        "date": "April 1 - November 1, 2026",
+        "label": "Poster submissions accepted on biahposter.com"
+      },
+      {
+        "phase": "Voting phase",
+        "date": "November 3-6, 2026",
+        "label": "Jury evaluates posters and selects works for exhibition"
+      },
+      {
+        "phase": "Selected artists announced",
+        "date": "November 7, 2026",
+        "label": "List of selected artists published"
+      },
+      {
+        "phase": "Exhibition",
+        "date": "December 1-8, 2026",
+        "label": "Selected posters exhibited; certificates sent by mid-November"
+      }
+    ],
+    "readingTime": 6,
+    "seo": {
+      "metaTitle": "7th Bolu International Poster Design Competition 2026",
+      "metaDescription": "Free poster design competition on Beyond Horizons: Designing a Sustainable Future. Open worldwide, deadline November 1, 2026.",
+      "keywords": [
+        "Bolu International Poster Competition",
+        "BIAH poster competition",
+        "international poster design competition",
+        "poster competition 2026",
+        "sustainable design competition",
+        "Beyond Horizons poster",
+        "poster design contest",
+        "Bolu Abant Izzet Baysal University"
+      ]
+    }
+  }
+}

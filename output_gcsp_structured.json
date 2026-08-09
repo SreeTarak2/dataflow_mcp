@@ -1,0 +1,98 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/2026-gcsp-prize-for-innovation-in-global-security/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Global Security",
+  "category": "Open / Multidisciplinary",
+  "subCategory": null,
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2025/06/2025-GCSP-Prize-Innovation-Global-Security.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "2026 GCSP Prize for Innovation in Global Security"
+  },
+  "title": "2026 GCSP Prize for Innovation in Global Security",
+  "description": "Apply to win CHF 10,000 for creative solutions advancing global security. Open to individuals and organisations in all sectors.",
+  "descriptionDetailed": "Launched in 2015, the GCSP Prize for Innovation recognizes individuals and organisations advancing bold and impactful solutions in global security. Open to all disciplines and sectors, it honours achievements through initiatives, technological innovations, research publications, or institutional accomplishments. First place receives CHF 10,000.",
+  "link": "https://www.gcsp.ch/events/apply-2026-gcsp-prize-innovation",
+  "flags": [
+    "hero"
+  ],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "CHF 10,000",
+    "totalUSD": 11000,
+    "currency": "CHF",
+    "prizeSummary": "Cash prizes totaling CHF 10,000",
+    "description": "The first-place laureate receives a CHF 10,000 cash prize and a certificate of excellence. Second- and third-place recipients are honoured with certificates of recognition, and two additional projects receive honourable mentions. Winners are announced at the annual online event in Fall 2026."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "Open to individuals and organisations across all sectors",
+    "eligibilityDetail": "The prize is open to all disciplines and sectors and celebrates achievements through new initiatives, technological innovations, research publications, or institutional accomplishments.",
+    "constraints": {
+      "participantType": [
+        "individuals",
+        "teams",
+        "companies"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-09-23T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "Europe/Zurich"
+  },
+  "tags": [
+    "open-call",
+    "global-security"
+  ],
+  "filterKeys": {
+    "domain": "open-multidisciplinary",
+    "format": [
+      "text"
+    ],
+    "medium": [
+      "digital"
+    ],
+    "themes": [
+      "global-security"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

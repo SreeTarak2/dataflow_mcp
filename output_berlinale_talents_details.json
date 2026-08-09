@@ -1,0 +1,134 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Emerging filmmakers apply for a week in Berlin",
+      "valueProposition": "Selected participants join 200 talented filmmakers for the Berlinale Talents Summit, with workshops, mentorship, project development, and industry networking."
+    },
+    "whyJoin": "Berlinale Talents is the talent development programme of the Berlin International Film Festival, connecting emerging filmmakers with the artistic and business sides of the industry. Every February, Berlin becomes the home for filmmakers and industry representatives who attend the Berlinale programme sections and the European Film Market to present their latest work.\n\nThe Summit is a six-day onsite event attended by all 200 invited Talents, featuring talks, workshops, and think tanks alongside the festival. In 2026, the programme moved to its new home at Radialsystem, and the Berlinale Talents Lab now hosts alumni projects spanning fiction, documentary, animation, and experimental forms.\n\nSelected participants gain mentorship, access to an international network of peers and experts, and the opportunity to develop projects through the Talent Project Market, which presents alumni projects seeking production partners within the Berlinale Co-Production Market.",
+    "whoShouldApply": "Berlinale Talents is aimed at filmmakers, series, and XR content creators with an existing track record of work who are willing to share their experiences with others. Applicants need to have made at least one feature-length film, two short films, or a high-quality drama series or TV movie that has screened in festivals or been widely streamed.\n\nStudents are admitted only in very exceptional cases, such as prior work in the film business. Applications are accepted in general, for specific projects, and from alumni, and each applicant must complete the general application for the Summit.\n\nThis call suits emerging film professionals who want to develop their craft, build collaborations, and join a community that supports their long-term growth within the global film industry.",
+    "benefits": [
+      "Place among the 200 Talents selected for the Summit",
+      "Six-day onsite programme of talks, workshops, and think tanks in Berlin",
+      "Project development through the Berlinale Talents Lab",
+      "Access to the Talent Project Market and industry networking",
+      "Mentorship from established filmmakers and industry experts",
+      "Long-term support through the Berlinale Talents alumni community"
+    ],
+    "tips": [
+      "Apply before August 19, 2026 to benefit from the reduced early bird application fee of €10",
+      "Prepare materials that demonstrate an existing track record, such as festival screenings or wide streaming",
+      "Complete the general application and any additional application relevant to your discipline",
+      "Describe your willingness to share your experience with the Talents community",
+      "Submit before the final deadline of September 2, 2026 at 12:00 noon CEST"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This programme is ideal for emerging filmmakers, series creators, and XR artists with an existing body of work who want to develop projects, meet international peers, and build lasting industry relationships in Berlin.",
+      "goodFit": [
+        "A filmmaker with a feature-length film that has screened at festivals",
+        "A series creator with a drama series or TV movie that has been widely streamed",
+        "An XR content creator with an existing track record of work",
+        "An alumnus returning to present a new project through the Lab or Talent Project Market"
+      ],
+      "notIdealFor": [
+        "Students without prior professional film work, since they are admitted only in exceptional cases",
+        "Beginners without a completed film, series, or TV movie to show",
+        "Applicants unwilling to pay the application service fee of €10-15"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who is eligible for Berlinale Talents?",
+        "answer": "The programme is aimed at filmmakers, series, and XR content creators with an existing track record. Applicants need at least one feature-length film, two short films, or a high-quality drama series or TV movie that has screened in festivals or been widely streamed. Students are admitted only in exceptional cases."
+      },
+      {
+        "question": "What is the application deadline?",
+        "answer": "Applications open in early July 2026 and close on September 2, 2026 at 12:00 noon CEST. Applying before August 19, 2026 qualifies for the reduced early bird service fee."
+      },
+      {
+        "question": "How much does it cost to apply?",
+        "answer": "The application service fee is €15 at the standard rate and €10 for the early bird rate, which applies to applications submitted by August 19, 2026."
+      },
+      {
+        "question": "When does the Summit take place?",
+        "answer": "The Berlinale Talents Summit is a six-day onsite event held in Berlin from February 12-17, 2027, during the Berlin International Film Festival."
+      },
+      {
+        "question": "How many participants are selected?",
+        "answer": "Around 200 emerging filmmakers from all over the world are selected each year from more than 3,400 applications. Applicants are notified of the outcome in mid-December 2026."
+      },
+      {
+        "question": "What does the programme include?",
+        "answer": "The programme includes the Summit with talks, workshops, and think tanks, the Berlinale Talents Lab for project development, and the Talent Project Market, along with mentorship, networking, and alumni support."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Complete the general application",
+        "detail": "Create an account and complete the general application for the Summit, providing your filmography and evidence of your track record."
+      },
+      {
+        "step": "Add programme-specific applications",
+        "detail": "If eligible, complete additional applications for the Berlinale Talents Lab or the Talent Project Market, including producers who apply for project development support."
+      },
+      {
+        "step": "Pay the service fee",
+        "detail": "Pay the application service fee of €15, or €10 if you apply before the early bird deadline of August 19, 2026."
+      },
+      {
+        "step": "Submit before the deadline",
+        "detail": "Ensure your complete application reaches the team by September 2, 2026 at 12:00 noon CEST."
+      },
+      {
+        "step": "Await the outcome",
+        "detail": "Applications are screened for eligibility in September, reviewed from October to November, and all applicants are notified of the outcome in mid-December 2026."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Applications Open",
+        "date": "July 8, 2026",
+        "label": "Call for applications for Berlinale Talents 2027"
+      },
+      {
+        "phase": "Early Bird Deadline",
+        "date": "August 19, 2026",
+        "label": "Reduced application fee of €10"
+      },
+      {
+        "phase": "Final Deadline",
+        "date": "September 2, 2026",
+        "label": "Applications close at 12:00 noon CEST"
+      },
+      {
+        "phase": "Applicants Notified",
+        "date": "Mid-December 2026",
+        "label": "All applicants notified of the outcome"
+      },
+      {
+        "phase": "Talents Announced",
+        "date": "Early January 2027",
+        "label": "200 Talents announced publicly"
+      },
+      {
+        "phase": "Summit",
+        "date": "February 12-17, 2027",
+        "label": "Six-day onsite Summit in Berlin"
+      }
+    ],
+    "readingTime": 5,
+    "seo": {
+      "metaTitle": "Berlinale Talents 2027 - Apply for the Summit",
+      "metaDescription": "Apply for Berlinale Talents 2027, the Berlinale talent development programme. 200 filmmakers, Summit in February, mentorship and networking.",
+      "keywords": [
+        "Berlinale Talents 2027",
+        "film talent programme",
+        "Berlin film festival",
+        "filmmaker development",
+        "XR creators programme",
+        "film industry networking",
+        "Berlin film summit",
+        "emerging filmmakers"
+      ]
+    }
+  }
+}

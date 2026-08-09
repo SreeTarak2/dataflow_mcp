@@ -1,0 +1,144 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "High school students pitch UN SDG solutions for global prizes",
+      "valueProposition": "Global winners receive up to $2,500 in cash, a virtual internship with LSE Generate founders, expert mentorship, and a Certificate of Achievement."
+    },
+    "whyJoin": "The LSE Generate Global Innovation Challenge (LGIC) is a fully virtual pitch competition for high school students worldwide, hosted in partnership with LSE Generate, the entrepreneurship hub of the London School of Economics, and Crimson Education. Students aged 13-18 identify a real-world problem aligned with the United Nations Sustainable Development Goals and pitch a scalable solution as individuals or in teams of two to four.\n\nParticipants build entrepreneurial skills through expert-led webinars, written resources, and access to past winning submissions. The competition runs in two rounds, from regional qualifiers in August to the live Global Finals, where the top four teams from each of five regions pitch live on Zoom before a panel of industry leaders, entrepreneurs, and academic experts.\n\nGlobal winners receive up to $2,500 in cash prizes, a virtual internship with LSE Generate founders, a mentorship hour with experts, exclusive access to LSE Generate events, a Certificate of Achievement, and global publication of their solution on the website and social media.",
+    "whoShouldApply": "This challenge is open to all high school students aged 13-18 from any country, including 9th graders who have yet to turn 13 and recent graduates taking a gap year who are not enrolled in university credits. Participants may compete individually or form teams of two to four members, and team members can come from different countries.\n\nSolutions can be a product, app, service, system, or social venture that addresses one or more of the UN Sustainable Development Goals, with potential for impact, scalability, and sustainability. No prior entrepreneurial experience is required, since webinars and resources prepare every registered participant to build an effective pitch.\n\nThis call suits students who want to turn an idea into a real-world solution, build problem-solving and teamwork skills, and gain international recognition while connecting with ambitious peers around the world.",
+    "benefits": [
+      "Cash prizes up to $2,500 for global winners",
+      "Virtual internship with LSE Generate founders",
+      "Mentorship hour with experts and exclusive access to LSE Generate events",
+      "Certificate of Achievement and global publication of winning solutions",
+      "Expert-led webinars, resources, and access to past winning submissions",
+      "International recognition and a global network of ambitious students"
+    ],
+    "tips": [
+      "Register before the August 4 regular registration deadline to secure your place",
+      "Identify a specific community problem aligned with one or more UN SDGs",
+      "Develop a solution that shows potential for impact, scalability, and sustainability",
+      "Design a clear pitch deck that defines the problem, explains the solution, and shows implementation",
+      "If competing in a team, have every member register and pay individually before the team leader submits the team form by August 5"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This challenge is ideal for high school students who want to develop an entrepreneurial mindset and turn a community problem into a scalable solution. It suits students who can commit to webinars and a structured submission process and who welcome feedback from expert judges.",
+      "goodFit": [
+        "A student with an idea for an app or service that tackles an SDG issue in the local community",
+        "A small team of peers who want to build teamwork and pitching skills together",
+        "A student preparing for future applications who wants a certificate and a published achievement",
+        "A gap-year student eager to stay productive before starting university"
+      ],
+      "notIdealFor": [
+        "Students younger than 13 who are not yet in 9th grade",
+        "Students already enrolled in university courses, since the challenge targets high school students",
+        "Those unwilling to pay the $20 per-student regular registration fee"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who can participate in the LSE Generate Global Innovation Challenge?",
+        "answer": "The challenge is open to high school students aged 13-18 worldwide, including 9th graders who have yet to turn 13 and gap-year students not enrolled in university credits. Participation is fully virtual, with no travel required."
+      },
+      {
+        "question": "What is the registration fee?",
+        "answer": "Regular registration costs $20 USD per student. Early bird registration was $15 USD per student and closed on May 31. Every team member must register and pay individually before the team registration form is submitted."
+      },
+      {
+        "question": "Can students compete as a team?",
+        "answer": "Yes. Students can compete individually or in teams of two to four members. Team members may live in different countries, and a team leader submits the team registration form on behalf of the group by August 5, 2026."
+      },
+      {
+        "question": "What are the key deadlines?",
+        "answer": "Regular registrations close on August 4, 2026, the regional round submission is due August 18, regional winners are announced August 25, the live Global Finals take place August 30, and global winners are announced September 3. All deadlines are 11:59pm GMT+0."
+      },
+      {
+        "question": "What do global winners receive?",
+        "answer": "First place receives $1,000, second place $750, and third place $500. All three winners also receive a virtual internship with LSE Generate founders, a mentorship hour with experts, exclusive access to LSE Generate events, a Certificate of Achievement, and global publication."
+      },
+      {
+        "question": "How does the competition work?",
+        "answer": "Registered participants receive guidelines and resources, then identify an SDG-aligned problem and submit a pitch deck for the regional round. The top four teams from each region advance to the live Global Finals, where they pitch for 4-6 minutes and answer a 5-minute Q&A."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Register individually",
+        "detail": "Complete individual registration for every participant during the open enrollment period. Regular registration costs $20 USD per student, and all competition updates are sent to the personal email provided."
+      },
+      {
+        "step": "Form a team",
+        "detail": "Students may compete individually or in teams of two to four. If competing as a team, every member must register and pay before the team leader submits the team registration form by August 5, 2026."
+      },
+      {
+        "step": "Develop a solution",
+        "detail": "Identify a real-world problem aligned with one or more UN SDGs and develop an innovative, scalable solution, whether a product, service, app, system, or social venture."
+      },
+      {
+        "step": "Create and submit the pitch deck",
+        "detail": "Prepare a slide deck that defines the problem, explains the solution, and demonstrates implementation. Upload the deck through the submission link shared with registered participants by the regional round submission date."
+      },
+      {
+        "step": "Compete in the Global Finals",
+        "detail": "Finalists refine their decks and present live on Zoom with a 4-6 minute pitch followed by a 5-minute Q&A. Global winners are announced on September 3."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Early-Bird Registrations Open",
+        "date": "April 1, 2026",
+        "label": "Early bird fee of $15 USD per student"
+      },
+      {
+        "phase": "Early-Bird Registrations Close",
+        "date": "May 31, 2026",
+        "label": "Early bird rate ends"
+      },
+      {
+        "phase": "Regular Registrations Open",
+        "date": "June 1, 2026",
+        "label": "Regular fee of $20 USD per student"
+      },
+      {
+        "phase": "Regular Registrations Close",
+        "date": "August 4, 2026",
+        "label": "Final deadline to register for the 2026 edition"
+      },
+      {
+        "phase": "Regional Round Submission",
+        "date": "August 18, 2026",
+        "label": "Pitch deck submission for the regional qualifiers"
+      },
+      {
+        "phase": "Regional Winners Announced",
+        "date": "August 25, 2026",
+        "label": "Top 4 teams per region advance"
+      },
+      {
+        "phase": "Live Global Finals",
+        "date": "August 30, 2026",
+        "label": "Finalists pitch live on Zoom"
+      },
+      {
+        "phase": "Global Winners Announced",
+        "date": "September 3, 2026",
+        "label": "Winners receive cash and internship prizes"
+      }
+    ],
+    "readingTime": 6,
+    "seo": {
+      "metaTitle": "LSE Generate Global Innovation Challenge 2026",
+      "metaDescription": "High school students worldwide pitch UN SDG solutions in the LSE Generate Global Innovation Challenge, with cash prizes, internships, and mentorship.",
+      "keywords": [
+        "LSE Generate Global Innovation Challenge",
+        "high school innovation competition",
+        "UN SDG pitch competition",
+        "student entrepreneurship contest",
+        "global innovation challenge 2026",
+        "LSE Generate",
+        "Crimson Education competition",
+        "SDG solutions for students"
+      ]
+    }
+  }
+}

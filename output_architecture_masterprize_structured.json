@@ -1,0 +1,99 @@
+{
+  "type": "award",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/architecture-masterprize-amp-2026/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Architecture",
+  "category": "Creative Arts",
+  "subCategory": "Architecture & Urban Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/04/Architecture-MasterPrize-AMP-2026-Competition.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Architecture MasterPrize (AMP) 2026"
+  },
+  "title": "Architecture MasterPrize (AMP) 2026",
+  "description": "Submit architecture, interior, landscape, or photography work for the Architecture MasterPrize and global recognition.",
+  "descriptionDetailed": "The Architecture MasterPrize (AMP) is an annual international award recognizing excellence in architecture, interior design, landscape architecture, and architectural photography. Open to professionals and students worldwide, winners receive the MasterPrize trophy, certification, and publication in the Architecture of the Year book.",
+  "link": "https://architectureprize.com/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 375,
+      "currency": "EUR"
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": "Professional entries cost €375 ($450) per entry, student and academic entries €76 ($80). Early entry discounts start at €264 per category, and entering the same project in multiple categories receives a 30% discount on additional categories"
+  },
+  "prize": {
+    "isMonetary": false,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": "MasterPrize trophy + winner certification + publication in the Architecture of the Year book",
+    "description": "Winners receive the MasterPrize trophy, winner certification, use of the winner seal, and publication in the Architecture of the Year book. Winning work is also included in the official AMP winners' showcase, with international recognition through publication and media exposure. The 2025/26 winners' gala takes place at the Guggenheim Museum Bilbao."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For architects, designers, and students worldwide",
+    "eligibilityDetail": "Open to professionals and students from around the world, entering as individuals, teams, or firms. Projects may be submitted across architecture, interior design, landscape architecture, architectural product design, and architectural photography. A dedicated Student Architecture Award track offers reduced fees, and Firm of the Year recognizes outstanding firms.",
+    "constraints": {
+      "participantType": [
+        "individuals",
+        "companies"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-08-31T23:59:00",
+    "eventEndUTC": "2026-11-24T00:00:00",
+    "organizerTimeZone": "America/Los_Angeles"
+  },
+  "tags": [
+    "open-call",
+    "interior-design",
+    "architectural-photography"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "digital",
+      "physical"
+    ],
+    "themes": [
+      "architecture",
+      "interior-design",
+      "landscape-architecture"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

@@ -5,7 +5,8 @@ Raw Data Processor — MCP tool for reading scraped raw data from CHRawdata.rawd
 
 Tools exposed:
   get_raw_data_status(source=None)  — summary of raw data by source
-  process_raw_data(source, limit)   — full normalize-and-upsert pipeline
+  process_raw_data(source, limit, auto_image, require_validation, dedupe_gate)
+                                  — full normalize-and-upsert pipeline
 """
 
 import logging
@@ -17,6 +18,7 @@ from pymongo import UpdateOne
 
 from config.mongodb import db, get_raw_db, RAW_COLLECTION
 from tools.tag_normalizer import normalize_tags_array
+from tools.dedup_gate import build_title_index, find_near_duplicates, normalize_title
 import json
 import os
 import subprocess
@@ -247,12 +249,18 @@ def process_raw_data(
     limit: int = 100,
     auto_image: bool = False,
     require_validation: bool = True,
+    dedupe_gate: bool = True,
 ) -> dict:
     """
     Read raw records from CHRawdata.rawdata for a given scraper `source`,
     validate, normalize, and upsert them into the primary Contests collection.
 
     Deduplication key: `source` + `title`.
+    Plus an optional duplicate-title GATE (on by default): any record whose
+    title matches an existing LIVE contest (same normalized title from a
+    different source, or a reworded title from the same source) is SKIPPED
+    and reported under "duplicates". Same-source exact-title matches update
+    in place as before.
 
     Args:
         source: Scraper source name (e.g. "contestwatchers", "opportunityDesk")
@@ -261,9 +269,12 @@ def process_raw_data(
                     and upload images to R2 after upserting contest data
         require_validation: If True, only process records with
                             validationStatus="validated" (default True)
+        dedupe_gate: If True (default), skip records that duplicate an
+                     existing live contest by normalized title. Set False
+                     to force-insert.
 
     Returns:
-        dict with inserted / updated / skipped / error counts
+        dict with inserted / updated / duplicates / skipped / error counts
     """
     if not source:
         return {"success": False, "error": "'source' parameter is required"}
@@ -303,6 +314,7 @@ def process_raw_data(
             "message": msg,
             "inserted": 0,
             "updated": 0,
+            "duplicates": 0,
             "skipped": 0,
             "errors": 0,
         }
@@ -315,10 +327,15 @@ def process_raw_data(
     # 3. Validate, normalize, build upsert operations
     target_collection = db[TARGET_COLLECTION]
 
+    # Preload the live-contest title index once per call for the gate.
+    title_index = build_title_index(target_collection) if dedupe_gate else {}
+    seen_in_batch: set = set()
+
     operations = []
     inserted = 0
     updated = 0
     skipped = 0
+    duplicates = 0
     errors = 0
     error_details = []
 
@@ -349,6 +366,40 @@ def process_raw_data(
         # Track for auto_image lookup
         if auto_image and title:
             upserted_titles.append(title)
+
+        # ── Duplicate-title gate ──
+        # Same semantics as submit_structured_records: block when another LIVE
+        # contest already exists with the same normalized title. Same-source
+        # exact-title matches (re-submits) pass through and update in place.
+        if dedupe_gate:
+            norm_key = normalize_title(title)
+            if norm_key and norm_key in seen_in_batch:
+                duplicates += 1
+                msg = (
+                    f"Duplicate gate: '{title}' repeats a record already "
+                    "processed in this batch. Skipped (pass dedupe_gate=false to force)."
+                )
+                error_details.append(msg)
+                logger.warning(msg)
+                continue
+            duplicate_matches = find_near_duplicates(
+                title_index, title, source, source_nested=False
+            )
+            if duplicate_matches:
+                duplicates += 1
+                dup_desc = "; ".join(
+                    f"'{m['title']}' (source={m['source'] or '?'}, _id={m['_id']})"
+                    for m in duplicate_matches[:3]
+                )
+                msg = (
+                    f"Duplicate gate: '{title}' already exists as: {dup_desc}. "
+                    "Skipped (pass dedupe_gate=false to force)."
+                )
+                error_details.append(msg)
+                logger.warning(msg)
+                continue
+            if norm_key:
+                seen_in_batch.add(norm_key)
 
         filter_key = {"source": source, "title": title}
 
@@ -391,6 +442,7 @@ def process_raw_data(
         "totalFetched": len(raw_records),
         "inserted": inserted,
         "updated": updated,
+        "duplicates": duplicates,
         "skipped": skipped,
         "errors": errors,
         "details": error_details[:10],  # limit error details to first 10

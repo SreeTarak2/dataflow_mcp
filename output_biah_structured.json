@@ -1,0 +1,95 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/7th-bolu-international-poster-design-competition-biah/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Graphic Design",
+  "category": "Creative Arts",
+  "subCategory": "Graphic Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/05/7th-Bolu-International-Poster-Design-Competition-BIAH.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "7th Bolu International Poster Design Competition (BIAH)"
+  },
+  "title": "7th Bolu International Poster Design Competition (BIAH)",
+  "description": "Design a sustainable future poster on the Beyond Horizons theme. Open to designers worldwide with no submission limit.",
+  "descriptionDetailed": "Designers everywhere interpret Beyond Horizons: Designing a Sustainable Future through posters aligned with five UN Sustainable Development Goals. Selected works are exhibited in December 2026, all exhibited designers receive a digital certificate, and the top three earn the BIAH Achievement Certificate. Free to enter, with no limit on submissions.",
+  "link": "https://biahposter.com/theme/",
+  "flags": [],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": false,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": "Digital certificate + achievement certificate",
+    "description": "All exhibited designers receive a digital certificate of participation. The top three works receive the symbolic digital BIAH Achievement Certificate, and the first-place winner earns the right to serve as a jury member at the next BIAH event."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "Open to designers worldwide",
+    "eligibilityDetail": "Participation is open to everyone; posters must relate to the theme and be written in English or English plus the participant's native language.",
+    "constraints": {
+      "participantType": [
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": null,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": "2026-04-01T00:00:00",
+    "submissionDeadlineUTC": "2026-11-01T23:59:00",
+    "eventEndUTC": "2026-12-08T23:59:00",
+    "organizerTimeZone": "Europe/Istanbul"
+  },
+  "tags": [
+    "poster-design",
+    "sustainability"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "digital"
+    ],
+    "themes": [
+      "sustainability",
+      "global-responsibility"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

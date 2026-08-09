@@ -1,0 +1,109 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "A CHF 10,000 prize for bold solutions to global security challenges",
+      "valueProposition": "The Geneva Centre for Security Policy awards CHF 10,000 plus a certificate of excellence to the most impactful innovation in global security."
+    },
+    "whyJoin": "The GCSP Prize for Innovation in Global Security is an annual award launched in 2015 as part of the Geneva Centre for Security Policy's Creativity and Innovation Initiative. It celebrates individuals and organisations advancing bold, creative, and impactful solutions in the field of global security, and it is open to all disciplines and sectors.\n\nThe first-place laureate receives a CHF 10,000 cash prize and a certificate of excellence in recognition of their contribution to global peace and security. Second- and third-place recipients are honoured with certificates of recognition, and two additional projects receive honourable mentions, so the prize recognises a range of contributions rather than a single winner.\n\nThe application process is free, and the prize can recognize achievements delivered through new initiatives, technological innovations, research publications, or institutional accomplishments. Winners are announced at the GCSP's annual online event in Fall 2026, giving selected projects visibility within an international security-policy community.",
+    "whoShouldApply": "This prize is for individuals and organisations working across any discipline or sector who have developed a bold, creative, and impactful solution to a global security challenge. It suits researchers, technologists, practitioners, institutions, and entrepreneurs whose work addresses security through new initiatives, technological innovation, research publications, or institutional accomplishments.\n\nBecause the prize is explicitly open to all disciplines and sectors, applicants do not need a security-policy background. Anyone with a demonstrable contribution to advancing global security can apply, and the competition is free to enter.",
+    "benefits": [
+      "CHF 10,000 cash prize for the first-place laureate",
+      "A certificate of excellence recognizing the contribution to global peace and security",
+      "Certificates of recognition for second- and third-place recipients",
+      "Honourable mentions for two additional projects",
+      "Visibility for selected projects at the GCSP annual online event in Fall 2026"
+    ],
+    "tips": [
+      "Apply by the deadline of Wednesday, September 23, 2026 at 23:59 UTC+2, since the deadline falls on a specific date",
+      "Frame your submission around a bold, creative, and impactful contribution to global security, which is what the judges evaluate",
+      "Be ready to describe your achievement through one of the accepted forms: a new initiative, technological innovation, research publication, or institutional accomplishment",
+      "Apply through the official CognitoForms application link on the GCSP page",
+      "Note that winners are announced in Fall 2026 at the annual online event"
+    ],
+    "shouldYouApply": {
+      "idealFor": "The GCSP Prize is ideal for an individual or organisation with a concrete, documented contribution to global security that can be presented as an initiative, innovation, publication, or institutional achievement. It suits applicants who can clearly show impact, who want recognition from an established Geneva-based security-policy institution, and who value the CHF 10,000 award plus the visibility of being announced at the GCSP annual event.",
+      "goodFit": [
+        "A researcher who has published work advancing global security and wants institutional recognition",
+        "A technologist who has developed an innovative tool or platform addressing a security challenge",
+        "An organisation that has delivered a new initiative or institutional accomplishment in the security field",
+        "An early-career professional in international affairs, policy, or security looking for a low-cost way to gain visibility"
+      ],
+      "notIdealFor": [
+        "Someone without a concrete, documented contribution to present, since the prize recognises actual achievements",
+        "An applicant seeking a larger prize pool or project funding, since the award is a CHF 10,000 recognition prize",
+        "A team or venture that is not ready to describe its impact in terms of global security outcomes"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who can apply for the GCSP Prize for Innovation?",
+        "answer": "The prize is open to all disciplines and sectors and celebrates individuals and organisations that are advancing bold, creative, and impactful solutions in the field of global security. Applications are free to submit."
+      },
+      {
+        "question": "What kind of contributions are recognised?",
+        "answer": "The prize honours achievements delivered through new initiatives, technological innovations, research publications, or institutional accomplishments. It recognises the most inspiring and original achievements of the year in global security."
+      },
+      {
+        "question": "What does the winner receive?",
+        "answer": "The first-place laureate receives a CHF 10,000 cash prize and a certificate of excellence. Second- and third-place recipients receive certificates of recognition, and two additional projects receive honourable mentions."
+      },
+      {
+        "question": "When is the application deadline?",
+        "answer": "The deadline for applications is Wednesday, 23 September 2026 at 23:59 UTC+2. Winners are announced in Fall 2026."
+      },
+      {
+        "question": "How does an applicant apply?",
+        "answer": "Applications are submitted through the official application form linked on the GCSP event page, which is a CognitoForms form for the 2026 GCSP Prize for Innovation in Global Security."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Review the prize details",
+        "detail": "Read the 2026 Rules and Regulations available on the GCSP event page to understand eligibility and what the judges evaluate."
+      },
+      {
+        "step": "Prepare your contribution",
+        "detail": "Prepare a clear description of your achievement in global security, presented as a new initiative, technological innovation, research publication, or institutional accomplishment, with evidence of its impact."
+      },
+      {
+        "step": "Submit your application",
+        "detail": "Complete the application form via the official CognitoForms link for the 2026 GCSP Prize for Innovation in Global Security before the deadline."
+      },
+      {
+        "step": "Wait for the announcement",
+        "detail": "Winners are announced at the GCSP annual online event in Fall 2026. The first-place laureate receives CHF 10,000 and a certificate of excellence."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Applications open",
+        "date": "Open now",
+        "label": "Applications are open via the GCSP application form"
+      },
+      {
+        "phase": "Application deadline",
+        "date": "September 23, 2026",
+        "label": "Applications due at 23:59 UTC+2"
+      },
+      {
+        "phase": "Winners announcement",
+        "date": "Fall 2026",
+        "label": "Winners announced at the GCSP annual online event"
+      }
+    ],
+    "readingTime": 5,
+    "seo": {
+      "metaTitle": "2026 GCSP Prize for Innovation in Global Security",
+      "metaDescription": "Apply for the GCSP Prize for Innovation in Global Security. CHF 10,000 cash prize, free entry, open to all disciplines and sectors.",
+      "keywords": [
+        "GCSP Prize for Innovation",
+        "global security prize",
+        "security innovation award",
+        "Geneva Centre for Security Policy",
+        "innovation in global security",
+        "CHF 10000 prize",
+        "security policy competition"
+      ]
+    }
+  }
+}

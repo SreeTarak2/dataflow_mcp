@@ -1,0 +1,122 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Independent animation festival in Calgary, free to submit",
+      "valueProposition": "Selected independent animated films screen at the annual GIRAF festival in Calgary each November, with the best International and Canadian short films awarded."
+    },
+    "whyJoin": "GIRAF 22 is the 22nd edition of the Giant Incandescent Resonating Animation Festival, organized by the Quickdraw Animation Society in Calgary, Canada. It is a festival dedicated to independent animation that pushes boundaries through new techniques, unique visions, and stimulating subject matter. Each year the festival brings over 60 shorts and features to audiences across Alberta, both on an online platform and in cinema.\n\nSelected films are presented during the festival each November at the Globe Cinema in Calgary. The best International short film and the best Canadian short film are awarded, giving selected animators recognition within an international independent animation community. The festival also runs screenings, artist talks, installations, and live performances as part of its program.\n\nSubmission is free of charge, either through FilmFreeway or directly through a free Google Form on the official website. Submissions open February 1 and close August 1, 2026, with notification in November.",
+    "whoShouldApply": "This call is for independent animators and filmmakers worldwide working in any style, genre, length, or medium, including hand-drawn, computer-generated, abstract, narrative, and experimental work. Both student films and films from established professionals are welcome, as long as the work is independent rather than commercial.\n\nIt is not a fit for commercial work such as ads, explainers, trailers, or festival stingers, which fall outside the Quickdraw Animation Society's mandate. Because the festival targets an adult audience, children's films are not a good fit, and music videos are only occasionally selected.",
+    "benefits": [
+      "Screening of selected films at GIRAF 22 in Calgary and on the festival's online platform",
+      "Awards for the best International short film and best Canadian short film",
+      "Exposure to an international community of independent animators and a general animation audience across Alberta",
+      "Access to festival programming including artist talks, installations, and live performances"
+    ],
+    "tips": [
+      "Submit for free through the Google Form on giraffest.ca, or via FilmFreeway at filmfreeway.com/GIRAF, before the August 1, 2026 deadline",
+      "Avoid commercial work such as ads, explainers, trailers, and festival stingers, which are not accepted",
+      "Keep in mind the festival is aimed at an adult audience, so children's films are unlikely to be selected",
+      "Music videos are a grey area, so only submit one if it clearly pushes independent animation boundaries",
+      "There is no fee when submitting directly through the official website's Google Form"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This festival is ideal for an independent animator or filmmaker with a non-commercial animated short or feature who wants their work screened for an international audience in Canada and a chance at a festival award, with no entry fee and broad acceptance across styles and lengths.",
+      "goodFit": [
+        "An independent animator with a hand-drawn, computer-generated, or experimental short film seeking festival screening in North America",
+        "A student animator with an original student film that is not aimed at children",
+        "A filmmaker with an animated feature or short that pushes creative boundaries and is comfortable with an adult-oriented program"
+      ],
+      "notIdealFor": [
+        "Commercial motion designers making ads, explainers, trailers, or festival stingers",
+        "Creators of children's animation, since the festival targets an adult audience",
+        "Animators seeking a cash prize, since awards are recognition rather than monetary"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Is there an entry fee?",
+        "answer": "No. GIRAF 22 is free to enter, either through FilmFreeway or through the free Google Form on the official giraffest.ca website."
+      },
+      {
+        "question": "What kind of animation is accepted?",
+        "answer": "Independent animation in all styles, genres, lengths, and mediums, including hand-drawn, computer-generated, abstract, and narrative films. Commercial work such as ads, explainers, and trailers is not accepted, and the festival targets an adult audience rather than children's films."
+      },
+      {
+        "question": "Who can submit?",
+        "answer": "Animators and filmmakers from around the world, including students and established professionals. There is no geographic restriction, and films can be short or feature length."
+      },
+      {
+        "question": "What are the key dates for GIRAF 22?",
+        "answer": "Submissions open February 1, 2026, and close August 1, 2026. Festival notifications are sent November 1, 2026, and GIRAF 22 runs November 12-15, 2026 at the Globe Cinema in Calgary."
+      },
+      {
+        "question": "How can a filmmaker submit a film?",
+        "answer": "Submit through FilmFreeway at filmfreeway.com/GIRAF or through the free Google Form linked on giraffest.ca. The festival screens selected films in Calgary and on its online platform."
+      },
+      {
+        "question": "What prizes are awarded?",
+        "answer": "The best International short film and the best Canadian short film are awarded during the festival, alongside other programming recognitions. Awards are recognition-based rather than cash prizes."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Prepare your animated film",
+        "detail": "Have an independent animated short or feature ready, in any style, genre, or length, that does not qualify as commercial work such as ads, explainers, or trailers."
+      },
+      {
+        "step": "Choose a submission channel",
+        "detail": "Submit through FilmFreeway at filmfreeway.com/GIRAF or through the free Google Form linked on the official giraffest.ca website before August 1, 2026."
+      },
+      {
+        "step": "Complete your submission",
+        "detail": "Provide the film and required details through your chosen channel. Submitting through the official website's Google Form is free of charge."
+      },
+      {
+        "step": "Await notification",
+        "detail": "Festival notifications are sent on November 1, 2026. Selected films are then presented at GIRAF 22."
+      },
+      {
+        "step": "Attend or follow the festival",
+        "detail": "GIRAF 22 runs November 12-15, 2026 at the Globe Cinema in Calgary, with additional online screenings through the festival platform."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Submissions open",
+        "date": "February 1, 2026",
+        "label": "GIRAF 22 begins accepting animated film submissions"
+      },
+      {
+        "phase": "Submission deadline",
+        "date": "August 1, 2026",
+        "label": "Final deadline for entries via FilmFreeway or the free Google Form"
+      },
+      {
+        "phase": "Festival notification",
+        "date": "November 1, 2026",
+        "label": "Selected films are notified ahead of the festival"
+      },
+      {
+        "phase": "GIRAF 22 festival",
+        "date": "November 12-15, 2026",
+        "label": "Festival screenings at the Globe Cinema in Calgary, with best International and Canadian shorts awarded"
+      }
+    ],
+    "readingTime": 5,
+    "seo": {
+      "metaTitle": "GIRAF 22 Independent Animation Festival 2026",
+      "metaDescription": "Free-to-enter independent animation festival in Calgary. Submit films in any style or length by August 1, 2026. Best International and Canadian shorts awarded.",
+      "keywords": [
+        "GIRAF animation festival",
+        "independent animation festival",
+        "animation festival Calgary",
+        "GIRAF 22 submissions",
+        "Quickdraw Animation Society",
+        "independent animation competition",
+        "animation film festival Canada",
+        "experimental animation festival",
+        "animated short film awards"
+      ]
+    }
+  }
+}

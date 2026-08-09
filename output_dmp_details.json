@@ -1,0 +1,129 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Designers worldwide enter product and graphic design work",
+      "valueProposition": "Winners receive the DMP trophy, certificates, badges, inclusion in the DMP Book of Design, and a feature in the Winners Gallery."
+    },
+    "whyJoin": "The Design Masterprize (DMP) is a global design award program celebrating excellence in product, graphic, and communication design. Organized by the Farmani Group, which runs award programs across design, architecture, photography, and the arts, DMP provides a global stage for designers across a broad spectrum of disciplines and experience levels.\n\nThe 2026 edition features 29 top categories spanning product, graphic, and communication design, including automotive, packaging, UI/UX, branding, typography, advertising, and web design. Entries are judged online through a custom voting system, with distinctions including Best of Best, Winner, Honorable Mention, and Official Entry.\n\nWinners receive the DMP trophy for designs of the year, certificates and badges for sub-category winners, inclusion in the yearly DMP Book of Design, and a feature in the Winners Gallery. All winner benefits are included in the submission fees, with no hidden costs.",
+    "whoShouldApply": "This award is open to designers, engineers, and creators of all experience levels and ages from any country, participating as individuals or companies. It welcomes work from product design, graphic design, communication design, advertising, digital media, and related fields.\n\nEntries can be conceptual, in-progress, or previously awarded in other competitions, so both emerging and established designers can participate. Submissions are accepted in 29 categories, and each entry is evaluated independently in its chosen category.\n\nThis call suits designers and studios looking for global recognition, PR campaigns, and networking with creative minds across the world.",
+    "benefits": [
+      "DMP Trophy for designs of the year",
+      "Winner certificates and badges for sub-category winners",
+      "Inclusion in the yearly DMP Book of Design",
+      "Feature in the Winners Gallery",
+      "Global recognition through PR campaigns and international promotion",
+      "Official Entry badge for all qualified entries"
+    ],
+    "tips": [
+      "Submit early to benefit from the 25% early entry discount before March 31, 2026",
+      "Choose the category that best represents the primary focus of your design",
+      "Enter the same work in multiple categories, with a 30% discount for additional categories",
+      "Keep conceptual, in-progress, or previously awarded works eligible for entry",
+      "Complete payment before the final deadline of July 31, 2026 to secure jury consideration"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This award is ideal for designers, engineers, and creators at any career stage who want international recognition across product, graphic, and communication design. It suits both individuals and companies, including studios seeking PR campaigns and wider client reach.",
+      "goodFit": [
+        "A product designer with a completed or conceptual design for a consumer product",
+        "A graphic design studio entering branding, typography, or advertising work",
+        "A UI/UX designer submitting a digital product or interface design",
+        "A packaging designer with sustainable or luxury packaging work"
+      ],
+      "notIdealFor": [
+        "Entrants expecting a cash prize, since DMP awards trophies, certificates, and publication",
+        "Applicants unwilling to pay the entry fee, which starts at €50 for students",
+        "Designers who need to edit submissions after payment, since entries cannot be edited once paid"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who can enter the Design Masterprize?",
+        "answer": "DMP is open to designers, engineers, and creators of all experience levels and ages from any country. Individuals and companies can participate, and there are no age or experience restrictions for any category."
+      },
+      {
+        "question": "What categories are available?",
+        "answer": "The 2026 edition features 29 top categories spanning product, graphic, and communication design, including automotive, beverage and food, consumer electronics, packaging, UI/UX, typography, advertising, and web design."
+      },
+      {
+        "question": "How much does it cost to enter?",
+        "answer": "Entry fees start at €225 for professionals and €50 for students in the early entry period. Additional categories for the same entry receive a 30% discount, and discounts are available for earlier deadlines."
+      },
+      {
+        "question": "What are the key deadlines?",
+        "answer": "The early entry deadline with a 25% discount is March 31, 2026. The extended early entry is May 18, 2026 with a 20% discount, the regular deadline is June 30, 2026 with 10% off, and the final deadline is July 31, 2026."
+      },
+      {
+        "question": "What do winners receive?",
+        "answer": "Designs of the year receive the DMP Trophy. Sub-category winners receive winner certificates, badges, inclusion in the yearly DMP Book of Design, and a feature in the Winners Gallery. Best of Best is awarded to the highest scoring winners in each main category."
+      },
+      {
+        "question": "Can previously awarded works be submitted?",
+        "answer": "Yes. DMP welcomes exceptional designs regardless of previous accolades. Works that have received awards in other competitions can be submitted, and there is no limit on the number of entries."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Register your entry",
+        "detail": "Navigate to the registration page on the Design Masterprize website and follow the step-by-step instructions to create your entry, providing your personal or company details."
+      },
+      {
+        "step": "Select your category",
+        "detail": "Review the 29 category descriptions and choose the category that best represents the primary focus of your design. Entries can be submitted to multiple categories with a 30% discount for additional categories."
+      },
+      {
+        "step": "Upload your project",
+        "detail": "Provide project details, images, and a brief description. Entries can be conceptual, in-progress, or previously awarded works."
+      },
+      {
+        "step": "Pay the entry fee",
+        "detail": "Complete payment through Stripe, which accepts all major credit and debit cards. Payment is required for jury consideration, and entries cannot be edited once paid."
+      },
+      {
+        "step": "Await judging",
+        "detail": "Entries are reviewed by editors and judged online by expert jurors through a multi-stage voting system, with Best of Best, Winner, and Honorable Mention distinctions announced afterward."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Early entry deadline",
+        "date": "March 31, 2026",
+        "label": "25% entry discount applied"
+      },
+      {
+        "phase": "Extended early entry",
+        "date": "May 18, 2026",
+        "label": "20% entry discount applied"
+      },
+      {
+        "phase": "Regular deadline",
+        "date": "June 30, 2026",
+        "label": "10% entry discount applied"
+      },
+      {
+        "phase": "Final deadline",
+        "date": "July 31, 2026",
+        "label": "Final submission deadline for the 2026 edition"
+      },
+      {
+        "phase": "Judging",
+        "date": "After July 31, 2026",
+        "label": "Initial review, official selection, winners selection, and Best of Best selection"
+      }
+    ],
+    "readingTime": 5,
+    "seo": {
+      "metaTitle": "Design Masterprize 2026 - Product & Graphic Design Award",
+      "metaDescription": "Enter product, graphic, or communication design in the Design Masterprize 2026. 29 categories, online judging, DMP trophy and Book of Design. Deadline July 31.",
+      "keywords": [
+        "design award 2026",
+        "product design competition",
+        "graphic design award",
+        "Design Masterprize",
+        "packaging design contest",
+        "UI UX design award",
+        "communication design award",
+        "Farmani Group design prize"
+      ]
+    }
+  }
+}

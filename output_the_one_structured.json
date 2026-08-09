@@ -1,0 +1,96 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/3rd-international-digital-art-biennial-the-one/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Digital Art",
+  "category": "Creative Arts",
+  "subCategory": "Illustration & Visual Art",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/06/3rd-International-Digital-Art-Biennial-THE-ONE.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "3rd International Digital Art Biennial – THE ONE"
+  },
+  "title": "3rd International Digital Art Biennial – THE ONE",
+  "description": "Submit digital graphics or short videos on the future of our planet. Free, for professional artists and art students worldwide.",
+  "descriptionDetailed": "The 3rd edition of Pinata Foundation's biennial explores the future of our planet through digital art. It accepts digital graphics and videos or animations up to 3 minutes from professional artists and art students; AI-created works are excluded. Free to enter, with qualifying works exhibited in Poland and published in a bilingual catalog.",
+  "link": "https://pinatagroup.com/the-one-3/",
+  "flags": [],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "6,000 PLN",
+    "totalUSD": 1500,
+    "currency": "PLN",
+    "prizeSummary": "Cash prizes totaling 6,000 PLN",
+    "description": "1st prize 3,000 PLN, 2nd prize 2,000 PLN, 3rd prize 1,000 PLN, plus honorable mentions. Qualifying works are shown in the post-competition exhibitions in Toruń and Włocławek and featured in a bilingual catalog with an ISBN."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For professional artists and art students worldwide",
+    "eligibilityDetail": "The competition accepts works by professional artists and art students from around the world, created using digital techniques. Works must not be created using artificial intelligence. Each participant may send 1 to 3 digital works by email.",
+    "constraints": {
+      "participantType": [
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 1
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-09-15T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "UTC"
+  },
+  "tags": [
+    "open-call",
+    "environment",
+    "exhibition"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image",
+      "video"
+    ],
+    "medium": [
+      "digital"
+    ],
+    "themes": [
+      "environment"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

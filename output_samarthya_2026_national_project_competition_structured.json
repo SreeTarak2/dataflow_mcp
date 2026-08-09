@@ -1,0 +1,94 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "internshala",
+    "url": "https://internshala.com/competitions/samarthya-2026-national-project-competition-win-%e2%82%b910000/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Project Competition",
+  "category": "Open / Multidisciplinary",
+  "image": {
+    "primary": {
+      "url": "https://internshala-competitions.s3.ap-south-1.amazonaws.com/competitions/wp-content/uploads/2026/07/31103247/Skin-IEEE.png",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Samarthya 2026 National Project Competition"
+  },
+  "title": "Samarthya 2026 National Project Competition",
+  "description": "Present an innovative technical project on Women Empowerment or Open Innovation in a national competition and compete for INR 10,000 in cash prizes. Open to students from any recognised college.",
+  "descriptionDetailed": "Samarthya 2026, organised by the SKN IEEE Student Branch, is a national-level hybrid project competition across three rounds: a project proposal presentation, a prototype video, and a final jury presentation. Projects address either Women Empowerment (technology-based solutions to women-centric social challenges) or Open Innovation (practical problems from any domain). Cash prizes total INR 10,000 with a dedicated Best Women-Centric Project award, plus certificates and national recognition.",
+  "link": "https://unstop.com/hackathons/samarthya-2026-project-competition-smt-kashibai-navale-college-of-engineering-sknce-pune-1727380",
+  "flags": [],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": "Participation is free of charge."
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "INR 10,000",
+    "totalUSD": 120,
+    "currency": "INR",
+    "prizeSummary": "Cash prizes totaling INR 10,000",
+    "description": "Winner receives INR 5,000, first runner-up INR 2,500, second runner-up INR 1,500, and the Best Women-Centric Project receives INR 1,000. Participants also receive participation or merit certificates and national recognition."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate"
+    ],
+    "primarySkillLevel": "intermediate",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "Open to students from any college",
+    "eligibilityDetail": "Teams of one to four students from any recognised college may participate, including inter-college teams. Each team selects either the Women Empowerment or Open Innovation theme.",
+    "constraints": {
+      "participantType": [
+        "students"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 4
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "India",
+    "mode": "hybrid"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-08-08T23:59:00",
+    "eventEndUTC": "2026-08-12T23:59:00",
+    "organizerTimeZone": "Asia/Kolkata"
+  },
+  "tags": [
+    "women-empowerment",
+    "prototype",
+    "pitch-competition"
+  ],
+  "filterKeys": {
+    "domain": "open-multidisciplinary",
+    "format": [
+      "video"
+    ],
+    "medium": [
+      "hybrid"
+    ],
+    "themes": [
+      "women-empowerment",
+      "open-innovation"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-06T00:00:00+00:00"
+}

@@ -1,0 +1,128 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Student teams design resilient infrastructure for an uncertain future",
+      "valueProposition": "Top teams share €15,000 in prize money, get expert jury feedback, and have results announced at Paris InfraWeek in November 2026."
+    },
+    "whyJoin": "InfraVision, a think tank founded by Vauban IP with the support of Altermind, runs its second international student competition in 2026 around the theme Infrastructure as a System. The competition asks student teams to design a fictional infrastructure project that remains relevant even when assumptions about demand, technology, and regulation prove wrong.\n\nThis is a free-to-enter competition with prize money of €7,000 for the first-placed team, €5,000 for the second, and €3,000 for the third. The jury is led by architect Sadie Morgan, founder of the Quality of Life Foundation, alongside recognized public figures including Erik Jones, Patrice Geoffron, Didem Nisanci, and Jean-Michel Blanquer. Results are announced during Paris InfraWeek on November 3, 2026.\n\nTeams work on a strategic task force advising on an infrastructure project such as a parking facility, data center, bridge, hospital, port, rail station, airport, heating network, highway upgrade, or urban logistics hub. The submission goes beyond a concept, requiring future scenarios, resilience analysis, trade-off reasoning, stakeholder engagement, and an implementation roadmap.",
+    "whoShouldApply": "This competition is for students worldwide who are enrolled at the time of submission, including PhD candidates. It welcomes creative minds from architecture, urban planning, engineering, complex systems, economics, public policy, computer science, and related backgrounds.\n\nParticipation is open to teams of 1 to 6 members, and there are no requirements on faculty or disciplinary composition, though multidisciplinary teams are encouraged. Teams must hold active student status during the 2025-2026 academic year.\n\nThis call suits students who enjoy scenario-based thinking rather than fixed assumptions, and who want to combine strategic thinking with technical understanding and creativity on a systems-level design challenge.",
+    "benefits": [
+      "€7,000 for the first-placed team, €5,000 for second, and €3,000 for third",
+      "Feedback from a jury led by architect Sadie Morgan and recognized public figures",
+      "Results announced during Paris InfraWeek on November 3, 2026",
+      "Opportunity to raise your profile and establish industry contacts"
+    ],
+    "tips": [
+      "Register first by emailing contact@infravision-thinktank.com with member details and a 1-3 sentence project overview",
+      "Submit before 23:59 CEST on July 31, 2026, using the forms on the competition page",
+      "Define 2 to 3 contrasted and plausible future scenarios that stress-test your project",
+      "Make explicit trade-offs between competitiveness, resilience, sustainability, and performance",
+      "Prepare a 30-40 slide deck plus a written abstract with visual representations",
+      "Show how your project connects to wider systems such as mobility, energy, or urban planning"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This competition is ideal for student teams that want to apply systems thinking to a realistic infrastructure design challenge with expert feedback and a real prize pool. It suits multidisciplinary teams from architecture, urban planning, engineering, economics, public policy, and computer science who enjoy scenario-based planning and strategic reasoning.",
+      "goodFit": [
+        "An architecture or urban planning student team proposing a resilient masterplan for a city district",
+        "An engineering team designing an adaptive energy or transport hub for uncertain demand",
+        "A public policy and economics team modeling a financing and regulatory framework for infrastructure",
+        "A computer science team proposing data-driven operations for a smart infrastructure system"
+      ],
+      "notIdealFor": [
+        "Applicants who are not students, since active student status during 2025-2026 is required",
+        "Individuals or teams expecting to submit a simple concept without future scenarios and trade-off analysis",
+        "Contestants who miss the July 31 deadline, since submissions after 23:59 CEST are not considered"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who can participate in the competition?",
+        "answer": "The competition is open to students worldwide, including PhD candidates, who have active student status during the 2025-2026 academic year. Teams of 1 to 6 members from architecture, urban planning, engineering, complex systems, economics, public policy, computer science, and related fields are welcome."
+      },
+      {
+        "question": "What is the theme for 2026?",
+        "answer": "The theme is Infrastructure as a System. Teams design a fictional infrastructure project that remains resilient, adaptive, and sustainable across uncertain futures shaped by climate pressure, technological disruption, regulatory change, and shifting demand."
+      },
+      {
+        "question": "What does a winning proposal include?",
+        "answer": "A strong submission includes a clear project vision, 2 to 3 plausible future scenarios, key risks and adaptation levers, explicit trade-offs, a system perspective, an implementation roadmap, and an impact indicator. The deliverable is a 30-40 slide deck plus a written abstract."
+      },
+      {
+        "question": "Is there an entry fee?",
+        "answer": "No. Participation is free of charge. Teams only need to register and submit their project before the deadline."
+      },
+      {
+        "question": "When is the deadline and when are results announced?",
+        "answer": "Submissions close at 23:59 CEST on July 31, 2026. Results are announced during Paris InfraWeek on November 3, 2026."
+      },
+      {
+        "question": "What are the prizes?",
+        "answer": "The first-placed team receives €7,000, the second €5,000, and the third €3,000. All participating teams receive feedback from a jury led by architect Sadie Morgan and other recognized public figures."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Register your team",
+        "detail": "Email contact@infravision-thinktank.com with the names, school and department affiliations, degrees studied, and expected graduation dates of all team members, a 1-3 sentence project overview, and contact details."
+      },
+      {
+        "step": "Design your infrastructure project",
+        "detail": "Work as a team of 1 to 6 students on a fictional infrastructure project, defining future scenarios, risks, adaptation levers, trade-offs, stakeholder engagement, and an implementation roadmap."
+      },
+      {
+        "step": "Prepare your submission",
+        "detail": "Create a 30-40 slide deck with a written abstract, including visual representations, sketches, and digital or physical models. Accepted formats are pdf, doc, docx, txt, and ppt, up to 20 MB."
+      },
+      {
+        "step": "Submit before the deadline",
+        "detail": "Complete the project submission form on the competition page before 23:59 CEST on July 31, 2026. Submissions after this time will not be taken into account."
+      },
+      {
+        "step": "Attend the results announcement",
+        "detail": "The jury evaluates submissions from late July through September, and results are announced during Paris InfraWeek on November 3, 2026."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Call for proposals opens",
+        "date": "May 15, 2026",
+        "label": "Opening of the call for proposals"
+      },
+      {
+        "phase": "Expression of interest",
+        "date": "June 30, 2026",
+        "label": "Applicants send an email with participant information and project overview"
+      },
+      {
+        "phase": "Submission deadline",
+        "date": "July 31, 2026",
+        "label": "Deadline for submissions at 23:59 Paris time (CET)"
+      },
+      {
+        "phase": "Jury review",
+        "date": "July 30 - September 8, 2026",
+        "label": "The jury evaluates all applications"
+      },
+      {
+        "phase": "Results announcement",
+        "date": "November 3, 2026",
+        "label": "Results announced during Paris InfraWeek"
+      }
+    ],
+    "readingTime": 6,
+    "seo": {
+      "metaTitle": "InfraVision Infrastructure As a System Student Comp 2026",
+      "metaDescription": "Free student competition to design resilient infrastructure for an uncertain future. Teams of 1-6 win €7,000, €5,000, or €3,000. Deadline July 31, 2026.",
+      "keywords": [
+        "infrastructure design competition",
+        "InfraVision student competition",
+        "resilient infrastructure",
+        "sustainable infrastructure projects",
+        "architecture student competition",
+        "urban planning competition",
+        "Paris InfraWeek",
+        "infrastructure system design"
+      ]
+    }
+  }
+}

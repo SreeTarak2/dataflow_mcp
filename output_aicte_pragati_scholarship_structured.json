@@ -1,0 +1,94 @@
+{
+  "type": "grant",
+  "source": {
+    "name": "internshala",
+    "url": "https://internshala.com/competitions/aicte-pragati-scholarship-scheme-for-girl-students-technical-degree/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Scholarship",
+  "category": "Education & Learning",
+  "image": {
+    "primary": {
+      "url": null,
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "AICTE Pragati Scholarship Scheme for Girl Students"
+  },
+  "title": "AICTE Pragati Scholarship Scheme for Girl Students",
+  "description": "Apply for INR 50,000 per year to fund technical degree or diploma study at an AICTE-approved college in India. For girl students from families earning under INR 8 lakh annually.",
+  "descriptionDetailed": "The All India Council for Technical Education runs Pragati to help girl students complete technical education. Around 10,000 scholarships are awarded each year, 5,000 for degree and 5,000 for diploma courses, each worth INR 50,000 per annum as a lump sum toward tuition, books, equipment, and laptops. Payments are made directly to the student's bank account by Direct Benefit Transfer.",
+  "link": "https://scholarships.gov.in",
+  "flags": [
+    "women"
+  ],
+  "entry": {
+    "isFree": null,
+    "fee": {
+      "amount": null,
+      "currency": null
+    },
+    "feeConfidence": "unknown",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "INR 50,000 per annum",
+    "totalUSD": 600,
+    "currency": "INR",
+    "prizeSummary": "Cash prizes totaling INR 50,000 per year",
+    "description": "Selected students receive INR 50,000 per annum for up to 4 years for degree study and up to 3 years for diploma study, as a lump sum toward college fees, books, equipment, laptops, and software."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate"
+    ],
+    "primarySkillLevel": "intermediate",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For girl students in technical study",
+    "eligibilityDetail": "Applicants must be girl students admitted to the first year (or second year via lateral entry) of a technical degree or diploma at an AICTE-approved institution, with annual family income below INR 8 lakh. Up to two girls per family may receive the scholarship.",
+    "constraints": {
+      "participantType": [
+        "students"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": null,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "India",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-10-31T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "Asia/Kolkata"
+  },
+  "tags": [
+    "women-in-stem",
+    "tuition-funding",
+    "higher-education"
+  ],
+  "filterKeys": {
+    "domain": "education-learning",
+    "format": [],
+    "medium": [
+      "digital"
+    ],
+    "themes": [
+      "technical-education",
+      "women-in-stem"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-06T00:00:00+00:00"
+}

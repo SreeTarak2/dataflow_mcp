@@ -1,0 +1,95 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "internshala",
+    "url": "https://internshala.com/competitions/women-in-tech-mixer/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Mixer / Networking",
+  "category": "Technology & AI",
+  "image": {
+    "primary": {
+      "url": null,
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "BTW Women In Tech Mixer 2026"
+  },
+  "title": "BTW Women In Tech Mixer 2026",
+  "description": "Attend a women-first networking mixer in Bengaluru with founders, engineers, designers, and product leaders during Bengaluru Tech Week. Open to women builders across Bengaluru.",
+  "descriptionDetailed": "This curated women-first evening brings together Bengaluru builders - founders, engineers, designers, product leaders, researchers, students, operators, and community leaders - for structured introductions, small-group circles, and real conversations. It is designed as a room for women that stays useful, safe, and high-signal rather than content-heavy. Spots are limited and curated, with approvals sent closer to the event date.",
+  "link": "https://luma.com/rkv8fvss",
+  "flags": [
+    "women"
+  ],
+  "entry": {
+    "isFree": null,
+    "fee": {
+      "amount": null,
+      "currency": null
+    },
+    "feeConfidence": "unknown",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": null,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": null,
+    "description": null
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For women builders in Bengaluru",
+    "eligibilityDetail": "The mixer is curated for women founders, engineers, designers, product leaders, researchers, students, operators, and community leaders. Spots are limited and approval-based, with confirmations sent closer to the event date.",
+    "constraints": {
+      "participantType": [
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": null,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Bengaluru, India",
+    "mode": "in-person"
+  },
+  "timeline": {
+    "startDateUTC": "2026-09-02T18:30:00",
+    "submissionDeadlineUTC": null,
+    "eventEndUTC": "2026-09-02T21:30:00",
+    "organizerTimeZone": "Asia/Kolkata"
+  },
+  "tags": [
+    "gender-equality",
+    "networking",
+    "startup-ecosystem"
+  ],
+  "filterKeys": {
+    "domain": "technology-ai",
+    "format": [],
+    "medium": [
+      "physical"
+    ],
+    "themes": [
+      "gender-equality",
+      "networking"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-06T00:00:00+00:00"
+}

@@ -1,0 +1,100 @@
+{
+  "type": "challenge",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/stanford-center-on-longevity-design-challenge-2026-2027/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Design",
+  "category": "Open / Multidisciplinary",
+  "subCategory": null,
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/07/Stanford-Center-Longevity-Design-Challenge-2026-2027.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Stanford Center on Longevity Design Challenge 2026-2027"
+  },
+  "title": "Stanford Center on Longevity Design Challenge 2026-2027",
+  "description": "Design robotics solutions that support longer, healthier lives. Open to teams of 1-5 university students worldwide.",
+  "descriptionDetailed": "The 14th Longevity Design Challenge asks student teams to design human-centered robotics that support longer lives and strengthen communities. Winners receive up to $10,000 in cash prizes, and finalists get $1,000 plus expert mentorship and a pitch at Stanford. Free to enter, open to any discipline.",
+  "link": "https://longevity.stanford.edu/design-challenge/",
+  "flags": [
+    "hero"
+  ],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "$10,000 (1st place)",
+    "totalUSD": 10000,
+    "currency": "USD",
+    "prizeSummary": "Cash prizes totaling $10,000",
+    "description": "1st place $10,000, 2nd place $5,000, 3rd place $2,000. Finalist teams each receive $1,000 plus mentorship from industry experts and researchers."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate"
+    ],
+    "primarySkillLevel": "intermediate",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For university students worldwide",
+    "eligibilityDetail": "Open to teams of 1-5 students enrolled during the 2026-2027 academic year at any accredited university or college globally. Each team needs at least one full-time student, and only students may present in the finals.",
+    "constraints": {
+      "participantType": [
+        "students",
+        "teams"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 5
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "hybrid"
+  },
+  "timeline": {
+    "startDateUTC": "2026-09-15T00:00:00",
+    "submissionDeadlineUTC": "2026-12-01T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "America/Los_Angeles"
+  },
+  "tags": [
+    "robotics",
+    "pitch-competition",
+    "mentorship"
+  ],
+  "filterKeys": {
+    "domain": "open-multidisciplinary",
+    "format": [
+      "text",
+      "video"
+    ],
+    "medium": [
+      "digital",
+      "physical"
+    ],
+    "themes": [
+      "longevity",
+      "healthy-aging"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

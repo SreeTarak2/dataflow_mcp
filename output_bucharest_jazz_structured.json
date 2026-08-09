@@ -1,0 +1,98 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/21st-bucharest-international-jazz-competition-2027/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Music",
+  "category": "Writing & Media",
+  "subCategory": "Music & Audio",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/05/21st-Bucharest-International-Jazz-Competition-2027.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "21st Bucharest International Jazz Competition 2027"
+  },
+  "title": "21st Bucharest International Jazz Competition 2027",
+  "description": "Compete live in Bucharest for €10,000 in jazz prizes. Open to jazz instrumentalists, bands, and vocalists up to age 45.",
+  "descriptionDetailed": "The 21st Bucharest International Jazz Competition runs July 2-10, 2027 during EUROPAfest, offering €10,000 in cash and concert engagements. A jury of international jazz artists picks winners across band, vocalist, and jam session categories, with semifinalists and finalists performing live. Registration is €140 per band by March 1, 2027.",
+  "link": "https://www.jazzcompetition.ro/",
+  "flags": [
+    "hero"
+  ],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 140,
+      "currency": "EUR"
+    },
+    "feeConfidence": "extracted",
+    "feeNote": "140 Euro per application / band"
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "€10,000",
+    "totalUSD": 10800,
+    "currency": "EUR",
+    "prizeSummary": "Cash prizes totaling €10,000",
+    "description": "Total prizes of €10,000 in cash and concert engagements: Grand Prize Winner €1,500, Best Band €500, Best Vocalist €500, Best Jam Session €250. Finalists also receive concert engagement opportunities."
+  },
+  "audience": {
+    "skillLevels": [
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "advanced",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": null,
+      "max": 45
+    },
+    "eligibilityLabel": "Open to jazz musicians up to age 45",
+    "eligibilityDetail": "Open to instrumentalists, bands, and vocalists of all nationalities born after July 1, 1982. The band leader may be older than 45.",
+    "constraints": {
+      "participantType": [
+        "individuals",
+        "teams"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": null,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "in-person"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2027-03-01T23:59:00",
+    "eventEndUTC": "2027-07-10T23:59:00",
+    "organizerTimeZone": "Europe/Bucharest"
+  },
+  "tags": [
+    "jazz",
+    "concert-engagement",
+    "jam-session"
+  ],
+  "filterKeys": {
+    "domain": "writing-media",
+    "format": [
+      "audio"
+    ],
+    "medium": [
+      "physical"
+    ],
+    "themes": [
+      "jazz",
+      "live-performance"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

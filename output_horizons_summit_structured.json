@@ -1,0 +1,175 @@
+{
+  "type": "event",
+  "source": {
+    "name": "LinkedIn Events",
+    "url": "https://www.linkedin.com/events/7435343742934552578",
+    "scrapedAt": "2026-07-27T00:00:00",
+    "lastUpdated": "2026-07-27T00:00:00"
+  },
+  "title": "Horizons Summit 2026",
+  "slug": "horizons-summit-2026",
+  "headline": "JFF's two-day national summit on workforce development, education, and economic opportunity, bringing together 2,000+ leaders in Washington, DC.",
+  "eventType": "summit",
+  "shortSummary": "Horizons Summit 2026, organized by Jobs for the Future (JFF), is a two-day in-person conference in Washington, DC, focused on workforce development, education, and economic opportunity. It convenes employers, investors, government leaders, entrepreneurs, and education providers in a nonpartisan environment, with 60+ sessions, six networking breaks, and 2,000+ attendees.",
+  "mediumSummary": "Horizons Summit 2026 is Jobs for the Future's (JFF) annual national platform for driving equitable economic advancement. Held July 13-14, 2026, at the Marriott Marquis in Washington, DC, the two-day summit convenes employers, investors, government leaders, entrepreneurs, and education and training providers across sectors. The program features 60+ sessions and six networking breaks, drawing more than 2,000 leaders and changemakers. Focus areas include expanding access to quality jobs, economic mobility, workforce innovation, and shaping education and workforce policy. A separate, invite-based Legislative Summit continues on Capitol Hill on July 15, 2026.",
+  "detailedOverview": "Horizons Summit 2026 is a two-day in-person conference organized by Jobs for the Future (JFF), a national nonprofit headquartered in Boston that drives transformation of the U.S. education and workforce systems. The summit, held July 13-14, 2026, at the Marriott Marquis Washington, DC, is JFF's trusted national platform for equitable economic advancement, founded in 2016.\n\nThe event convenes a cross-sector audience of employers, investors, government leaders, entrepreneurs, and education and training providers in a nonpartisan environment. According to the event program, it includes 60+ sessions, six networking breaks, and more than 2,000 attendees described as leaders and changemakers. Stated focus areas include actionable strategies, partnership opportunities, and influencing the future of workforce and education policy.\n\nConference themes center on expanding access to quality jobs, economic mobility, workforce development, education, and job creation. The main-stage program features conversations with leaders from industry and policy, including remarks on what makes a quality job.\n\nIn conjunction with the main summit, JFF runs its inaugural Legislative Summit on July 13-14 at the Marriott Marquis and on July 15 on Capitol Hill. Participation in the Legislative Summit is limited and invite-based: attendees must be paid Horizons registrants, complete a questionnaire, be accepted, and pay an additional $100 fee. The Legislative Summit includes breakfast with congressional staff and constituent meetings with congressional offices.\n\nRegistration is handled through the Horizons registration portal at horizons.jff.org, with tiered pricing and rate increases announced through mid-May 2026.",
+  "topics": [
+    "Workforce Development",
+    "Education",
+    "Economic Opportunity",
+    "Quality Jobs",
+    "Economic Mobility",
+    "Financial & Economic Inclusion",
+    "Job Creation"
+  ],
+  "tags": [
+    "workforce-development",
+    "education",
+    "economic-mobility",
+    "jff",
+    "quality-jobs",
+    "leadership",
+    "policy"
+  ],
+  "eventDates": {
+    "start": "2026-07-13T09:00:00-04:00",
+    "end": "2026-07-14T18:00:00-04:00",
+    "timezone": "America/New_York",
+    "duration": "2 days"
+  },
+  "registration": {
+    "deadline": null,
+    "url": "https://horizons.jff.org/event/annualsummit/register",
+    "fee": null,
+    "currency": "USD",
+    "earlyBirdDeadline": null,
+    "earlyBirdFee": null,
+    "eligibility": [
+      "Employers",
+      "Investors",
+      "Government leaders",
+      "Entrepreneurs",
+      "Education and training providers"
+    ],
+    "capacity": null,
+    "status": "open"
+  },
+  "venue": {
+    "mode": "offline",
+    "venueName": "Marriott Marquis Washington, DC",
+    "address": {
+      "street": "901 Massachusetts Ave NW",
+      "city": "Washington",
+      "state": "District of Columbia",
+      "country": "US",
+      "postalCode": "20001",
+      "formatted": "901 Massachusetts Ave NW, Washington, District of Columbia, US, 20001"
+    },
+    "coordinates": {
+      "lat": null,
+      "lng": null
+    },
+    "googleMapsUrl": null,
+    "virtualPlatform": null
+  },
+  "organizer": {
+    "name": "Jobs for the Future (JFF)",
+    "description": "A national nonprofit that drives transformation of the U.S. education and workforce systems to ensure economic advancement for people, businesses, and communities. Headquartered in Boston, Massachusetts. Founded in 2016.",
+    "website": "https://www.jff.org/",
+    "email": null,
+    "phone": null,
+    "logo": null,
+    "socialLinks": [
+      "https://www.linkedin.com/company/jobs-for-the-future/"
+    ]
+  },
+  "speakers": [],
+  "agenda": [],
+  "pricing": [],
+  "targetAudience": [
+    "Professionals",
+    "Founders",
+    "Entrepreneurs",
+    "Academics",
+    "Researchers",
+    "Data Scientists"
+  ],
+  "benefits": [
+    "Access to 60+ sessions across workforce, education, and economic mobility",
+    "Six networking breaks with 2,000+ leaders and changemakers",
+    "Opportunities to form cross-sector partnerships",
+    "Insights on actionable strategies for quality jobs and economic advancement"
+  ],
+  "certifications": [],
+  "sponsors": null,
+  "partners": null,
+  "faqs": [],
+  "resources": [],
+  "contact": {
+    "email": null,
+    "phone": null,
+    "website": "https://horizons.jff.org/"
+  },
+  "eventInsights": {
+    "recommendedFor": [
+      "Professionals",
+      "Founders",
+      "Academics",
+      "Researchers"
+    ],
+    "difficultyLevel": "intermediate",
+    "careerValue": 4,
+    "networkingValue": 5,
+    "learningValue": 4,
+    "industryExposure": 5,
+    "overallValue": 4,
+    "reasoning": "Large national summit with 2,000+ attendees and 60+ sessions provides strong networking and industry exposure. Career and learning value rated high because the program covers actionable workforce, education, and economic mobility strategies, though specific outcomes depend on the attendee's sector."
+  },
+  "seo": {
+    "metaTitle": "Horizons Summit 2026 | JFF Workforce & Education",
+    "metaDescription": "Join 2,000+ leaders at JFF's Horizons Summit 2026, July 13-14 in Washington, DC, for workforce development, education, and economic opportunity. 60+ sessions.",
+    "seoKeywords": [
+      "horizons summit 2026",
+      "jff horizons",
+      "workforce development conference",
+      "economic mobility summit",
+      "education conference washington dc",
+      "quality jobs summit",
+      "jobs for the future"
+    ],
+    "canonicalUrl": "https://horizons.jff.org/"
+  },
+  "quality": {
+    "contentCompletenessScore": 75,
+    "missingFields": [
+      "eventDates.start",
+      "registration.deadline",
+      "registration.fee",
+      "venue.coordinates",
+      "speakers",
+      "agenda"
+    ],
+    "lastValidated": "2026-07-27T00:00:00"
+  },
+  "flags": [
+    "event-ended"
+  ],
+  "status": "archived",
+  "visibility": "public",
+  "featured": false,
+  "isRecurring": true,
+  "recurrence": {
+    "frequency": "yearly",
+    "interval": 1
+  },
+  "analytics": {
+    "views": 0,
+    "registrations": 0,
+    "shares": 0
+  },
+  "customFields": {
+    "estimatedAttendees": 2000,
+    "sessionCount": 60,
+    "networkingBreakCount": 6
+  }
+}

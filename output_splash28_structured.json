@@ -1,0 +1,93 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/splash-28-the-best-of-watercolor/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Watercolor",
+  "category": "Creative Arts",
+  "subCategory": "Illustration & Visual Art",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/06/Splash-28-The-Best-of-Watercolor-Competition.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Splash 28 – The Best of Watercolor Competition"
+  },
+  "title": "Splash 28 – The Best of Watercolor",
+  "description": "Submit watercolor, gouache, casein, or egg tempera artwork for Splash 28. Open to artists worldwide aged 18 and above.",
+  "descriptionDetailed": "Splash 28 invites contemporary watermedia artists to submit two-dimensional work in watercolor or similar water-based media such as gouache, casein, or egg tempera on paper. Acrylic is not accepted as the dominant medium, and AI-generated artwork is not considered. Winners earn cash prizes and are published in The Best of Watercolor, Summer 2027.",
+  "link": "https://www.artistsnetwork.com/art-competitions/splash/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 15,
+      "currency": "USD"
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": "Tiered by deadline: members $15/$25/$30, non-members $25/$35/$40"
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "$3,500",
+    "totalUSD": 3500,
+    "currency": "USD",
+    "prizeSummary": "Cash prizes totaling $3,500",
+    "description": "1st place $2,000, 2nd $1,000, 3rd $500. Ten honorable mentions receive a $50 gift card and a one-year Artists Network Membership ($99.99 value). Winners and 100+ finalists are published in The Best of Watercolor (Summer 2027)."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "inferred",
+    "age": {
+      "min": 18,
+      "max": null
+    },
+    "eligibilityLabel": "Open to artists worldwide aged 18 and above",
+    "eligibilityDetail": "The dominant medium must be watercolor or a similar water-based medium (gouache, casein, or egg tempera) on paper. Acrylic is not acceptable as the dominant medium, and AI-generated artwork is not considered. Entries are limited to original two-dimensional works no deeper than 1.5 inches.",
+    "constraints": {
+      "participantType": [
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 1
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-12-11T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "UTC"
+  },
+  "tags": [
+    "watercolor",
+    "painting",
+    "open-call"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "physical"
+    ],
+    "themes": []
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

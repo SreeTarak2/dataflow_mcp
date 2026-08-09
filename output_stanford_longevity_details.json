@@ -1,0 +1,127 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Student teams pitch robotics for longer, healthier lives",
+      "valueProposition": "Up to $10,000 in cash prizes for student teams that design human-centered robotics, with finalists gaining $1,000, expert mentorship, and a pitch day at Stanford."
+    },
+    "whyJoin": "The Stanford Center on Longevity Design Challenge is in its fourteenth year, inviting university student teams worldwide to design human-centered robotics that support longer, healthier lives while strengthening relationships and communities. This is a chance to work on a meaningful, high-profile design problem in partnership with the Stanford Robotics Center, and to have your concept judged by experts in design, technology, venture capital, and mission-driven organizations.\n\nThe prize pool is substantial for a student challenge: $10,000 for first place, $5,000 for second, and $2,000 for third. Every finalist team receives $1,000 and is paired with an experienced mentor from industry or research to develop the idea through the finals. Finalists pitch in front of judges at Stanford, with limited travel costs reimbursed.\n\nThere are no field or background requirements, so teams can come from design, engineering, business, social sciences, law, or any other discipline. High-tech and low-tech robotics concepts are equally welcome, and there is no entry fee.",
+    "whoShouldApply": "This challenge is for university student teams of 1 to 5 members, enrolled during the 2026-2027 academic year at any accredited university or college globally. Teams must include at least one full-time student, and only students may present if the team reaches the finals. There are no field or background requirements, so the call is open to design, engineering, business, social sciences, law, physical sciences, education, and humanities students alike.\n\nIt suits students interested in robotics, product design, human-centered design, health, or aging, and those who want practice taking a concept from an initial idea to a polished pitch. Teams can be international and may combine students from multiple universities, or include non-students as long as at least one full-time university student is on the team.",
+    "benefits": [
+      "$10,000 cash prize for first place, $5,000 for second, and $2,000 for third",
+      "$1,000 cash prize plus mentorship from industry experts and researchers for every finalist team",
+      "A pitch day at Stanford University in April 2027, with limited travel costs reimbursed",
+      "Feedback from judges with expertise in design, technology, venture capital, and mission-driven organizations"
+    ],
+    "tips": [
+      "Focus on impact in judging terms, since impact carries 40 percent of the score, ahead of feasibility at 30 percent, originality at 20 percent, and affordability at 10 percent",
+      "Identify a clear target population and show the robot would be affordable for them, since the affordability criterion is scored separately",
+      "A short video of up to 90 seconds is recommended but not required, and can help the judges understand your design",
+      "User testing with family or friends before the deadline can strengthen your submission, but is not required",
+      "You can register and submit anytime between September 15 and December 1, 2026; there is no need to have a working prototype for the initial submission"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This challenge is ideal for a university student team of 1 to 5 people with an idea for robotics that improves long lives, who want structured mentorship, a competitive cash prize, and the experience of pitching at Stanford. No prototype is required for the initial submission, making it accessible to teams at the concept stage.",
+      "goodFit": [
+        "A design or engineering student team with a robotics concept for mobility, caregiving, or social connection that they want to develop and pitch",
+        "A multidisciplinary team mixing business, engineering, and humanities students who want to solve a real-world aging challenge",
+        "A student who wants structured mentorship from industry experts and a clear path to a final pitch competition",
+        "A team with an affordable, low-tech robotic idea aimed at people with limited resources, which fits the affordability emphasis"
+      ],
+      "notIdealFor": [
+        "Solo applicants who prefer to work alone, since the challenge emphasizes teams of up to 5 members, though individuals may participate",
+        "Teams without at least one full-time university student, which is required for eligibility",
+        "Students who want guaranteed acceptance or a fast turnaround, since the challenge runs across the full academic year"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Is there an entry fee?",
+        "answer": "No. Participation in the Longevity Design Challenge is free of charge."
+      },
+      {
+        "question": "Who is eligible to participate?",
+        "answer": "The challenge is open to teams of 1-5 students enrolled during the 2026-2027 academic year at any accredited university or college globally. Each team must have at least one full-time student, and only students may present if the team reaches the finals."
+      },
+      {
+        "question": "What are the cash prizes?",
+        "answer": "First place receives $10,000, second place $5,000, and third place $2,000. Finalist teams announced in January receive $1,000 and are paired with an experienced mentor."
+      },
+      {
+        "question": "Is a working prototype required to submit?",
+        "answer": "No. The December submission is about the idea or concept. Prototyping and development happen in Phase II, from January to April 2027, after teams are selected as finalists."
+      },
+      {
+        "question": "What are the key dates?",
+        "answer": "The challenge kicks off September 15, 2026, submissions are due December 1, 2026 at 11:59 PM Pacific time, finalists are announced January 27, 2027, and the finals take place at Stanford in April 2027."
+      },
+      {
+        "question": "What should be submitted for the initial entry?",
+        "answer": "A thorough explanation of your design through the entry form on the submission portal, including text and optional pictures, video, or documentation. A short video of up to 90 seconds is recommended but not required."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Form your team",
+        "detail": "Assemble a team of 1-5 students enrolled during the 2026-2027 academic year at any accredited university or college globally, with at least one full-time student. Teams may mix students from multiple universities and may include non-students."
+      },
+      {
+        "step": "Register to participate",
+        "detail": "Register on the submission portal at designchallengestanford.skild.com between September 15 and December 1, 2026. The first person to register a team becomes the team leader."
+      },
+      {
+        "step": "Develop your design concept",
+        "detail": "Design a human-centered robotics solution for one of the four categories: mobility and physical safety, caregiving and daily living, social connection and cognitive health, or sustainable cities and aging infrastructure."
+      },
+      {
+        "step": "Complete the entry form",
+        "detail": "Submit your entry through the portal before 11:59 PM Pacific time on December 1, 2026. Provide a thorough written explanation of your design, and consider adding a short video of up to 90 seconds or supporting documentation."
+      },
+      {
+        "step": "Await finalist announcement",
+        "detail": "Judging runs from December 2026 to January 2027. Finalists are announced on January 27, 2027 and receive $1,000 plus a mentor for Phase II."
+      },
+      {
+        "step": "Pitch at the finals",
+        "detail": "Finalists develop their idea during Phase II and present a seven-minute pitch with five minutes of Q&A to judges at Stanford in April 2027, where the top three winners are decided."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Kick-off and registration",
+        "date": "September 15, 2026",
+        "label": "Phase I begins and the submission portal opens for team registration"
+      },
+      {
+        "phase": "Phase I submissions due",
+        "date": "December 1, 2026",
+        "label": "Design concepts due by 11:59 PM Pacific time"
+      },
+      {
+        "phase": "Finalists announced",
+        "date": "January 27, 2027",
+        "label": "5-8 teams selected, each awarded $1,000 and paired with a mentor"
+      },
+      {
+        "phase": "Finals at Stanford",
+        "date": "April 2027",
+        "label": "Finalist teams pitch at Stanford and the top three cash prizes are awarded"
+      }
+    ],
+    "readingTime": 7,
+    "seo": {
+      "metaTitle": "Stanford Longevity Design Challenge 2026-2027",
+      "metaDescription": "Student teams design human-centered robotics for longer lives. Win up to $10,000 plus mentorship. Free entry, deadline December 1, 2026.",
+      "keywords": [
+        "Longevity Design Challenge",
+        "Stanford design challenge",
+        "robotics for longevity",
+        "student robotics competition",
+        "human-centered robotics",
+        "aging design competition",
+        "Stanford Center on Longevity",
+        "design challenge 2026 2027",
+        "robotics design prize"
+      ]
+    }
+  }
+}

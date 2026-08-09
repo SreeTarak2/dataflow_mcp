@@ -1,0 +1,99 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/uia-hyp-cup-2026-international-student-competition-in-architectural-design/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Architecture",
+  "category": "Creative Arts",
+  "subCategory": "Architecture & Urban Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/06/UIA-HYP-CUP-2026-Student-Competition-Architectural-Design.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "UIA-HYP CUP 2026 International Student Competition in Architectural Design"
+  },
+  "title": "UIA-HYP CUP 2026 International Student Competition in Architectural Design",
+  "description": "Design communities for urban, suburban, or rural living. For architecture students worldwide, in teams of up to 4.",
+  "descriptionDetailed": "The only UIA-endorsed international student architecture competition held annually in mainland China, now in its 15th edition. Under the topic Villagers: Urban, Suburban, Rural, students propose community designs across one of three ways of living, with a first prize of RMB 80,000. Free for architecture students worldwide.",
+  "link": "http://hypcup.uedmagazine.net/",
+  "flags": [
+    "hero"
+  ],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "RMB 80,000 (1st prize)",
+    "totalUSD": 11000,
+    "currency": "CNY",
+    "prizeSummary": "Cash prizes totaling RMB 80,000",
+    "description": "1st Prize (1 team): RMB 80,000 and certificate. 2nd Prize (5 teams): RMB 15,000 each. 3rd Prize (12 teams): RMB 8,000 each. Several honorable mentions receive certificates. Advisors of prize-winning projects also receive certificates."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate"
+    ],
+    "primarySkillLevel": "intermediate",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For architecture students worldwide",
+    "eligibilityDetail": "Open to architecture and related-major students worldwide, including full-time undergraduates, master's students, PhD students, and students graduating in 2026. Individual or team entries are accepted, with up to 4 members and up to 2 academic advisors per team.",
+    "constraints": {
+      "participantType": [
+        "students",
+        "teams"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 4
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-10-10T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "Asia/Shanghai"
+  },
+  "tags": [
+    "urban-design",
+    "sustainable-communities",
+    "open-call"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image",
+      "text"
+    ],
+    "medium": [
+      "digital"
+    ],
+    "themes": [
+      "sustainability",
+      "urban-design"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

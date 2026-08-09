@@ -1,0 +1,835 @@
+# HACKATHON EXTRACTION PROMPT — v1.1
+#
+# Purpose: Extract structured hackathon data from raw webpage content
+# using AI's native web search and URL grounding.
+#
+# DATA PIPELINE:
+#   Hackathon URL → AI web search + grounding → structured JSON →
+#   stored in Contests collection (type: 'hackathon') + contest_details collection
+#
+# ⚠️ SCHEMA DEPENDENCY:
+# This prompt outputs fields that do NOT yet exist in the current models.
+# Before deploying, expand the following schemas:
+#   1. backend/models/Contests.js → hackathonSchema: add judgingCriteria[],
+#      submissionRequirements[], prizeBreakdown[], engagement{}, teamSize{}
+#   2. backend/models/ContestDetail.js → contentSchema: add judgingProcess,
+#      mentorshipDetails, resourceOfferings[]
+#
+# ⚠️ UI ACCESS PATTERN:
+# The Contests model stores hackathon data under the `hackathon` key.
+# The prompt outputs detail fields under `hackathonDetails` to avoid
+# naming collision. The controller or normalizer maps:
+#   contest.hackathon = extracted.hackathonDetails
+# So the UI reads: contest.hackathon.judgingCriteria (single nest).
+#
+# This prompt handles both:
+#   - Scraped content (raw HTML/text from a known URL)
+#   - AI web search results (when the AI browses the hackathon page independently)
+#
+# If the source page is a platform page (Devfolio, Devpost, DoraHacks, etc.),
+# the AI SHOULD use its web search capability to also find:
+#   - The official hackathon website (separate from the platform page)
+#   - Sponsor pages with prize details
+#   - Judging criteria pages
+#   - Past winner pages for historical data
+#
+# BACKGROUND — Hackathon Platforms:
+#   Devfolio — Indian-focused, student-heavy, offline events common
+#   Devpost — Global, enterprise hackathons, very structured submission rules
+#   DoraHacks — Frontier tech (AI, Web3, Quantum), grant funding + voting
+#   HackerEarth — Enterprise innovation, structured rubrics, recruitment focus
+#   LabLab.ai — AI-focused, Discord/Twitch integration, video pitches
+#
+# Each platform presents data differently. The AI must adapt extraction
+# strategy based on the source platform.
+
+==================================================
+GLOBAL OUTPUT RULES (NON-NEGOTIABLE)
+==================================================
+
+- Output ONE valid JSON object only.
+- No markdown.
+- No comments.
+- No prose outside the JSON object.
+- Do not output extra fields beyond the schema.
+- Do not invent facts.
+- Do not guess dates, fees, prize amounts, team sizes, judging criteria,
+  participant counts, or track details.
+- Use null when scalar information is missing.
+- Use [] when array information is missing.
+- Use "" only for required string fields where no better value exists.
+- Prefer null over wrong values.
+- Trim all strings.
+- Preserve source-backed facts exactly when possible.
+- Do not create fake tracks, judges, sponsors, mentors, or prizes.
+- Only infer safe classification fields such as category, filterKeys,
+  tags, skillLevels, techStack, and SEO fields.
+- If the source is unclear, incomplete, duplicated, cancelled, outdated,
+  or unreliable, add a flag such as 'unreliable-source' but do NOT set
+  a status field (status is computed server-side by a cron job).
+
+==================================================
+ANTI-HALLUCINATION RULES
+==================================================
+
+1. Every factual value must come from explicit source evidence or very strong
+   source implication. "Explicit" means the text is directly visible on the page.
+2. If a field is not clearly present in the source content, return null, [],
+   or "" according to the field type.
+3. Do not assume prize amounts. If the page says "$100,000+ prize pool",
+   extract the MINIMUM guaranteed amount (100000). The "+" means prizes
+   START at $100K — do not inflate. If the page says "over $50K in prizes",
+   the same rule applies: extract 50000, not 50001. Never round up or add
+   amounts unless clearly specified.
+4. Do not fill missing dates from the current year or hackathon title unless
+   the source clearly states the full date.
+5. Do not assume a hackathon is free unless the source explicitly says so.
+6. Do not assume registration is open unless the source clearly provides a
+   registration button/link or wording such as "register now" or "apply now".
+7. Do not infer or default team sizes. Only use explicitly stated min/max
+   team sizes from the hackathon's rules section. If not stated, set both
+   to null — never supply default values (team sizes vary by event).
+8. Do not create judging criteria from thin air. Only extract criteria
+   explicitly listed in a judging section, rules tab, or rubric.
+9. Do not infer participant counts. Use only explicitly stated counts such as
+   "2,000+ participants", "1000 hackers", or live counters.
+10. Do not turn marketing claims into facts. "Best hackathon ever" is not a
+    data point.
+11. When a hackathon page uses a platform like Devfolio or Devpost, note that
+    the platform name is the `platform` field, NOT the organizer. The organizer
+    is the entity/company/university hosting the event.
+
+==================================================
+SCHEMA VERSION
+==================================================
+
+hackathons-v1.1
+
+==================================================
+FINAL SCHEMA (STRICT)
+==================================================
+
+{
+  "type": "hackathon",
+  "title": "",
+  "description": "",
+  "descriptionDetailed": "",
+  "category": "",
+  "subCategory": null,
+  "link": "",
+  "tags": [],
+  "flags": [],
+  "image": {
+    "primary": {
+      "url": null,
+      "source": "external",
+      "status": "active"
+    },
+    "alt": null
+  },
+  "entry": {
+    "isFree": null,
+    "feeUSD": null,
+    "feeConfidence": "unknown",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": null,
+    "originalAmount": null,
+    "totalUSD": null,
+    "prizeSummary": null,
+    "currency": "USD",
+    "description": null,
+    "breakdown": null
+  },
+  "timeline": {
+    "startUTC": null,
+    "registrationDeadlineUTC": null,
+    "submissionDeadlineUTC": null,
+    "eventEndUTC": null
+  },
+  "audience": {
+    "eligibilityLabel": null,
+    "eligibilityDetail": null,
+    "mode": null,
+    "location": null,
+    "skillLevels": [],
+    "primarySkillLevel": null,
+    "constraints": {
+      "participantType": [],
+      "teamSize": {
+        "min": null,
+        "max": null
+      }
+    }
+  },
+  "filterKeys": {
+    "domain": null,
+    "format": ["hackathon"],
+    "medium": [],
+    "themes": []
+  },
+  "source": {
+    "name": null,
+    "url": null,
+    "type": "aggregator"
+  },
+  "hackathonDetails": {
+    "duration": null,
+    "platform": null,
+    "tracks": [],
+    "techStack": [],
+    "mentorship": null,
+    "judgingCriteria": [],
+    "submissionRequirements": [],
+    "prizeBreakdown": [],
+    "engagement": {
+      "totalParticipants": null,
+      "projectsSubmitted": null
+    },
+    "teamSize": {
+      "min": null,
+      "max": null
+    }
+  },
+  "content": {
+    "hero": {
+      "subheadline": null,
+      "valueProposition": null
+    },
+    "whyJoin": null,
+    "whoShouldApply": null,
+    "benefits": [],
+    "submissionGuide": [],
+    "judgingProcess": null,
+    "mentorshipDetails": null,
+    "resourceOfferings": [],
+    "tips": [],
+    "faq": [],
+    "shouldYouApply": {
+      "idealFor": null,
+      "goodFit": [],
+      "notIdealFor": []
+    },
+    "readingTime": null
+  },
+  "research": {
+    "officialWebsite": {
+      "url": null,
+      "lastFetched": null
+    },
+    "faqSources": [],
+    "redditThreads": [],
+    "pastWinners": [],
+    "communityTips": []
+  },
+  "seo": {
+    "metaTitle": "",
+    "metaDescription": "",
+    "keywords": []
+  },
+  "metadata": {
+    "pipelineSteps": [],
+    "qualityScore": null,
+    "errors": []
+  }
+}
+
+==================================================
+WEB SEARCH STRATEGY
+==================================================
+
+The AI has access to web search capability (Google Search grounding).
+Use it STRATEGICALLY — not for every field, but when the source page
+is incomplete.
+
+AUTOMATIC SEARCH TRIGGERS (search when these are missing):
+
+1. If `prize.totalUSD` is null AND the page has sponsor/track names:
+   SEARCH for "[hackathon name] [sponsor name] prize"
+
+2. If `judgingCriteria` is empty BUT the hackathon is on a platform
+   (Devfolio, Devpost, HackerEarth):
+   SEARCH for "[hackathon name] judging criteria"
+   Common judging criteria across platforms include:
+   - Innovation / Creativity (20-35%)
+   - Technical Implementation / Feasibility (20-30%)
+   - Impact / Potential (20-25%)
+   - Design / UX (10-15%)
+   - Presentation / Pitch Quality (10-15%)
+   Only use these if confirmed by search results.
+
+3. If `hackathonDetails.engagement.totalParticipants` is null:
+   Check the platform page for participant counts.
+   Devfolio shows: "+ X participating" on the listing card
+   LabLab shows participant numbers on the event page
+   HackerEarth shows registration counts in the header
+
+4. If `hackathonDetails.prizeBreakdown` is empty BUT sponsor names are visible:
+   SEARCH for "[hackathon name] prizes" or
+   "[hackathon name] sponsor tracks"
+
+5. If `research.officialWebsite.url` is null AND the platform page mentions
+   a separate official website:
+   SEARCH for "[hackathon name] official site"
+
+6. If `research.pastWinners` is empty AND the hackathon is recurring:
+   SEARCH for "[hackathon name] past winners" or
+   "[hackathon name] [year] results"
+   Only include if results are confirmed — do not fabricate winner names.
+
+DO NOT SEARCH for:
+- Organizer details (should be on the page)
+- Dates (should be on the page or platform)
+- Location/venue details (should be on the page)
+- Description/overview text (should be on the page)
+
+==================================================
+HACKATHON PLATFORM RECOGNITION
+==================================================
+
+Recognize the platform to adjust extraction strategy:
+
+DEVFOLIO (devfolio.co):
+- Timeline: Applications Open, Applications Close, Hackathon Begins, Deadline
+- Mode: Online, Offline, Online with Application Review
+- Shows: organizing team, participant count, prize tracks, FAQs
+- Prizes listed under Tracks/Challenges tab
+- Has dedicated Lineup tab for Mentors, Judges, Speakers
+
+DEVPOST (devpost.com):
+- Prize amounts in USD, clearly listed
+- Submission requirements: demo video (strict <3min), GitHub, live URL
+- Technology tags in the software submission gallery
+- Has "Rules" page with judging criteria
+- Shows starting/ending dates clearly
+
+DORAHACKS (dorahacks.io):
+- Frontier tech focus (AI, Blockchain, Quantum)
+- Has BUIDL tracking, grant funding links
+- Shows voting mechanisms and quadratic funding
+- Telegram/Discord community links prominent
+- Prize amounts sometimes in crypto
+
+HACKEREARTH (hackerearth.com):
+- Very structured: dedicated tabs for Judging Criteria, Guidelines, Schedule
+- Rubrics with explicit percentage weights per criterion
+- Registration count displayed prominently
+- Enterprise sponsors clearly listed
+
+LABLAB.AI (lablab.ai):
+- AI-specific: requires API usage, video pitches
+- Discord/Twitch integration
+- Shows: participant count, prize pool, duration, mode
+- Mentor/expert session schedule
+- Resource offerings clear (API credits, compute credits)
+- Track: Online build dates + On-site finale dates (hybrid)
+
+==================================================
+FIELD-BY-FIELD EXTRACTION RULES
+==================================================
+
+### 1. TYPE
+- Must be "hackathon" — NOT "contest" or "conference"
+
+### 2. TITLE
+- Use the exact hackathon name from the page heading.
+- Do NOT include "Hackathon" suffix if it's already in the title
+  (e.g., "Push to Prod Hackathon: Building at the Frontier" — keep full title)
+- Shorten only if the original is excessively long (>100 chars)
+
+### 3. DESCRIPTION (short — card version, what to do)
+- ONE sentence (max 100 characters)
+- Must tell the user what to build or submit
+- Example: "Build AI-native applications using cutting-edge foundation models."
+- Example: "Create autonomous AI agents that coordinate and complete complex workflows."
+- Do NOT include: organizer name, prize info, dates, location, eligibility
+
+### 4. DESCRIPTION DETAILED (expanded — detail page)
+- 400-700 characters, 3-6 sentences
+- Expand on the short description
+- Include what's unique: notable sponsors, track variety, past success
+- Do NOT repeat deadline/location/fee from the sidebar
+- Tone: conversational, warm, genuine. Avoid: premier, world-class, prestigious
+
+### 5. CATEGORY
+- Map to your existing category system (same as contests)
+- Hackathons are typically: "Technology", "AI", "Blockchain", "Design", "Social Impact"
+- If the hackathon has a clear track/theme, use the broadest category
+
+### 6. ENTRY — Fee structure
+- isFree: true only if the source explicitly says "free" or shows $0 fee
+- feeUSD: null if free, number if paid
+- feeConfidence: "confirmed" if explicitly stated, "extracted" if inferred,
+  "unknown" if not mentioned
+
+### 7. PRIZE — Prize pool
+- totalUSD: the total prize pool in USD
+  - If the page says "$100,000+ prize pool", use 100000
+  - If the page says "over $50K in prizes", use 50000
+  - If different currencies, convert to USD (1 EUR ≈ 1.08 USD, 1 GBP ≈ 1.26 USD,
+    1 INR ≈ 0.012 USD)
+  - Can be null if no amount stated
+- isMonetary: true if cash/crypto prizes, false if only non-monetary (swag, recognition)
+- prizeSummary: human-readable version like "Cash prizes totaling $100,000"
+- description: any non-monetary prize description
+- breakdown: text summary of prize tiers, e.g. "1st: $50K, 2nd: $20K, 3rd: $10K"
+
+### 8. TIMELINE — Multiple dates
+Hackathons have more timeline dates than typical contests:
+- startUTC: When the hackathon begins (hacking starts)
+- registrationDeadlineUTC: Last date to register/apply
+- submissionDeadlineUTC: Final submission deadline (REQUIRED if available)
+- eventEndUTC: When results are announced / award ceremony
+
+IMPORTANT: Devfolio has both "Applications Close" and "Hackathon Deadline".
+  - Applications Close = registrationDeadlineUTC
+  - Hackathon Deadline = submissionDeadlineUTC
+
+### 9. AUDIENCE — Participant details
+- mode: "online", "offline", "hybrid"
+  - Devfolio: "Online" = online, "Offline" = offline,
+    "Online with Application Review" = online
+- location: "Worldwide", country name, or city + country
+  - For offline events: use the city/venue location
+  - For online: "Worldwide" unless explicitly limited to a region
+- skillLevels: infer from hackathon difficulty/promotion
+  - ["beginner", "intermediate", "advanced"] if open to all
+  - Fewer levels if clearly targeted (e.g., ["advanced"] for enterprise-only)
+- constraints.teamSize: extract min/max from rules section
+  - If not stated, set both min and max to null — never supply defaults
+- eligibilityLabel: "Open to all", "For students", "For developers", etc.
+- eligibilityDetail: expanded eligibility text
+
+### 10. FILTER KEYS
+- domain: based on primary technology area ("technology", "ai", "blockchain", "design")
+- format: ["hackathon"] always
+- medium: based on tech stack focus
+- themes: track names, challenge themes, sponsor categories
+
+### 11. HACKATHONDETAILS SUB-SCHEMA — The hackathon-specific fields
+
+#### duration
+- Human-readable string: "48 hours", "72 hours", "2 weeks", "1 month"
+- Derive from timeline dates if not explicit
+- Example: If submissionDeadlineUTC - startUTC = 3 days → "72 hours"
+
+#### platform
+- The hackathon platform hosting the event: "Devfolio", "Devpost",
+  "DoraHacks", "HackerEarth", "LabLab.ai"
+- If the hackathon has its own website (not on a platform), use "official" or null
+- Do NOT confuse platform with organizer
+
+#### tracks
+- Array of challenge tracks within the hackathon
+- Each track has: name (the track title), description (what it covers),
+  prizeUSD (specific prize amount for this track, if available)
+- Example tracks: "AI/ML Track", "Web3 Track", "Open Innovation",
+  sponsor tracks like "The Stripe API Challenge"
+- If the hackathon has only one general prize (no tracks), leave as []
+
+#### techStack
+- Technologies the hackathon focuses on or expects participants to use
+- Examples: ["Python", "React", "Node.js", "OpenAI API", "Solidity", "Figma"]
+- Extract from: required technologies, sponsor API offerings, track descriptions
+- May be inferred from hackathon theme (e.g., AI → ["Python", "ML frameworks"])
+  — this is a low-stakes field, inference is acceptable
+
+#### mentorship
+- Boolean: true if explicit mentorship mentioned (office hours, mentor sessions,
+  Discord/Q&A support from experts)
+- false if not mentioned
+
+#### judgingCriteria
+- Array of criteria with name, description, weight
+- HackerEarth typically has explicit weighted rubrics
+- Devfolio/Devpost judges by round: preliminary (pass/fail) → finals (weighted)
+- Common criteria across platforms:
+  - Innovation / Creativity: originality and novelty of the idea
+  - Technical Implementation: quality, complexity, working state
+  - Impact / Potential: business value, scalability, social impact
+  - Design / UX: user interface, experience, visual appeal
+  - Presentation: pitch quality, demo clarity
+- Only extract if explicitly stated or clearly implied by the rules page
+- Leave as [] if not found
+
+#### submissionRequirements
+- What participants must submit for their project to be considered
+- Common items (extract only the ones explicitly stated):
+  - "Working demo / prototype URL"
+  - "Demo video (3 min max)"
+  - "Source code repository"
+  - "Project description write-up"
+  - "Pitch deck / slide presentation"
+  - "List of technologies used"
+  - "Testing instructions / access credentials"
+  - "APM / API keys used"
+- Be specific: note the video length limit if stated ("2 min video" not just "video")
+- Leave as [] if submission requirements page is not accessible
+
+#### prizeBreakdown
+- Detailed breakdown of prizes by rank and track
+- Each item has: place (the rank), track (optional, which track it's for),
+  amount (the prize value description)
+- Examples:
+  ```
+  { "place": "1st Place", "track": "AI Track", "amount": "$5,000" }
+  { "place": "2nd Place", "track": "AI Track", "amount": "$2,000" }
+  { "place": "Grand Prize", "track": null, "amount": "$10,000 + mentorship" }
+  { "place": null, "track": "Best Use of Stripe API", "amount": "$1,500" }
+  ```
+- Include non-cash items in the amount string: "$5,000 + cloud credits"
+- Sponsor prizes should be listed with the sponsor track name
+- Leave as [] if prize breakdown is not available
+
+#### engagement
+- totalParticipants: total individual participants (consolidated field —
+  this replaces registeredCount; there is no separate registeredCount field)
+  - Most platforms (Devfolio, LabLab, HackerEarth) show this value
+  - Devfolio shows "+ X participating" on listing cards
+  - LabLab shows participant numbers on the event page 
+  - HackerEarth shows registration count in header stats
+- projectsSubmitted: number of projects from past editions (for recurring hackathons)
+- Only use explicitly displayed numbers. Do NOT infer from other metrics.
+- Note: This tracks PARTICIPANTS, not teams. If a page shows "5000 hackers"
+  that's totalParticipants: 5000.
+
+#### teamSize
+- min: minimum team members — must be explicitly stated on the page.
+  Set to null if not stated (do NOT default to 1).
+- max: maximum team members — must be explicitly stated on the page.
+  Set to null if not stated (do NOT default to 4).
+- Extract from rules or registration section only
+
+### 12. CONTENT — AI-generated rich text (stored in contest_details)
+
+#### hero.subheadline
+- The tagline or one-line pitch from the hackathon page
+- Usually appears near the title: "Build the next generation of X"
+
+#### hero.valueProposition
+- The core value proposition in 1-2 sentences
+- What makes this hackathon worth joining?
+
+#### whyJoin
+- 2-4 sentences on why someone should participate
+- Mention: learning opportunities, networking, career benefits, prize value
+- Grounded in actual source content
+
+#### whoShouldApply
+- 2-3 sentences describing the ideal participant
+- Based on eligibility, skill levels, and target audience
+
+#### benefits
+- Specific benefits mentioned: free tickets, cloud credits, APIs access,
+  mentorship, swag, job opportunities, accelerator access
+- Extract from the page, do not invent
+
+#### submissionGuide
+- Step-by-step submission process if available
+- Each step: step number + detail
+- Example: [{ "step": "1", "detail": "Register on Devfolio" }]
+
+#### judgingProcess
+- How judging works: rounds, format, timeline
+- Example: "Round 1: Preliminary screening by platform judges. Round 2: Live demo to sponsor panel."
+- Leave as null if not available
+
+#### mentorshipDetails
+- What mentorship is available: schedule, format, who provides it
+- Example: "Daily office hours with Google engineers. Dedicated mentor for each track."
+- Leave as null if not available
+
+#### resourceOfferings
+- APIs, cloud credits, tools, or datasets provided to participants
+- Each item has: type (what it is), provider (who provides it),
+  value (monetary value if stated), description
+- Example: { "type": "Cloud Credits", "provider": "Google Cloud",
+  "value": "$500 in credits", "description": "For all participants" }
+- Extract from sponsor/resources section of the page
+
+#### tips
+- Tips from the page for participants (usually in FAQ or advice section)
+- Max 5 tips
+
+#### faq
+- Frequently asked questions from the page
+- Each has: question, answer
+- Max 10 items (prioritize most useful)
+
+#### shouldYouApply
+- idealFor: who this hackathon is perfect for
+- goodFit: who would benefit from applying
+- notIdealFor: who might not be the right fit
+
+#### readingTime
+- Estimated reading time for the detail page content in minutes.
+- Calculate based on total content (whyJoin + submissionGuide + judgingProcess
+  + mentorshipDetails + tips + faq): ~200 words per minute.
+- Example: 400-600 words of content → readingTime: 2.
+- Set to null if minimal content is available (fewer than 100 words total).
+
+### 13. RESEARCH — External information
+
+#### officialWebsite
+- url: the hackathon's own website (NOT the platform page)
+- If the hackathon uses only a platform page (devfolio.co/hackathons/name),
+  use the platform URL as the link, not as officialWebsite
+
+#### pastWinners
+- Array of known past winners (names or team names) from previous editions.
+- Only include if explicitly found on the hackathon page or via web search.
+- Format: ["Team Name — University", "Individual Name"] — use the exact
+  naming from the source.
+- ANTI-HALLUCINATION: Do NOT fabricate winner names. Only include if you
+  are highly confident the source is authoritative (official results page,
+  hackathon website, reputable news article). If uncertain, leave as [].
+- This field was the source of a past data fabrication incident — be
+  extra cautious. Prefer empty over wrong.
+
+#### communityTips
+- Array of tips from the community or from the hackathon's FAQ/advice section.
+- Only include tips explicitly stated on the page.
+- Format: short strings like ["Start forming your team early.", "Review the judging rubric before submitting."]
+- Do NOT invent tips based on general hackathon advice.
+- Max 5 tips.
+
+#### faqSources
+- Array of URLs pointing to FAQ pages or sections.
+- Only include if the source page has a dedicated FAQ section or page.
+- Format: full URLs to the FAQ content.
+
+### 14. SEO
+
+#### metaTitle
+- Max 60 characters
+- Format: "Hackathon Name — Category Hackathon | Contest Hopper"
+
+#### metaDescription
+- 120-160 characters
+- Include: what to build, prize signal, date, who it's for
+- Example: "Build AI agents with Google Gemini. Over $100K in prizes plus Google Cloud credits. Open to developers worldwide. Apply by August 15, 2026."
+
+#### keywords
+- 5-10 keywords
+- Include: hackathon name, platform, category, mode, location, tags, "free hackathon" if free
+
+==================================================
+ENUMS AND NORMALIZATION RULES
+==================================================
+
+audience.mode must be one of:
+  "online", "offline", "hybrid"
+
+audience.constraints.participantType may include:
+  ["individuals", "teams"]
+
+audience.skillLevels may include:
+  ["beginner", "intermediate", "advanced"]
+
+audience.primarySkillLevel must be one of:
+  "beginner", "intermediate", "advanced", "open"
+
+filterKeys.domain must be one of:
+  "technology", "ai", "blockchain", "design", "social-impact",
+  "healthtech", "fintech", "edtech", "climate", "gaming", "other"
+
+filterKeys.format must always include "hackathon". May also include:
+  "workshop", "conference" (for hybrid events with conference components)
+
+source.type must be one of:
+  "aggregator", "direct", "partner", "official"
+
+==================================================
+DATE AND TIME RULES
+==================================================
+
+- Dates must be ISO 8601 in UTC.
+- Never assume a timezone — use UTC always.
+- If only a date is known, use "YYYY-MM-DDT00:00:00.000Z".
+- If start date is unknown, startUTC must be null.
+- If submission deadline is unknown, submissionDeadlineUTC must be null
+  — do NOT use startUTC or eventEndUTC as the deadline.
+- registrationDeadlineUTC may be the same as submissionDeadlineUTC
+  if no separate registration deadline is mentioned.
+- Devfolio uses two distinct dates: Applications Close (reg deadline)
+  and Hackathon Deadline (submission deadline). Keep them separate.
+
+==================================================
+PRIZE NORMALIZATION RULES
+==================================================
+
+- totalUSD: Total prize pool in USD. If in different currency, convert.
+- originalAmount: The prize in its original currency (e.g., 500000 INR)
+- isMonetary:
+  - true if the hackathon offers cash, crypto, or equivalent monetary prizes
+  - false if only non-monetary (exhibition, publication, recognition only)
+  - null if prize information is completely absent
+- prizeSummary: Human-readable summary
+  - If totalUSD > 0: "Cash prizes totaling $100,000"
+  - If totalUSD is null but originalAmount exists: "Cash prizes totaling 500,000 INR"
+  - If isMonetary is false: Condensed description of non-monetary prizes
+  - If no prize info at all: null
+- prizeBreakdown is in hackathonDetails.prizeBreakdown (array of per-rank prizes),
+  NOT in prize.breakdown (which is a text field)
+
+==================================================
+SUBMISSION RULES
+==================================================
+
+Submission requirements for hackathons follow platform conventions:
+
+Devpost:
+- Demo video (strictly <3 minutes, YouTube or MP4)
+- Public GitHub repository link
+- Live deployed URL or working prototype
+- Project description and tagline
+- Team members listed
+
+Devfolio:
+- Project name and tagline
+- Problem statement
+- Technologies used
+- Project links (GitHub, demo, design files)
+- Demo video (optional on some events)
+
+LabLab.ai:
+- Working demo or prototype
+- Demo video (typically <5 minutes)
+- Project description
+- Tech stack used
+- Discord/Twitch account verification (sometimes)
+
+HackerEarth:
+- Product demo / prototype link
+- Source code repository
+- Slide deck / presentation
+- Team details
+
+Extract only the requirements EXPLICITLY stated on the hackathon page.
+Do NOT assume platform defaults — each hackathon customizes these.
+
+==================================================
+TRACK EXTRACTION RULES
+==================================================
+
+Hackathon tracks are sub-challenges within the main event.
+Each track may have its own prize pool, criteria, and sponsors.
+
+Extract tracks from:
+- Prizes tab/section (Devfolio, Devpost)
+- Sponsors section (sponsor tracks)
+- Challenge categories listed on the page
+- Theme tags shown on the listing card
+
+Each track object:
+{
+  "name": "AI/ML Track",
+  "description": "Build AI-powered solutions using machine learning models",
+  "prizeUSD": 5000
+}
+
+- prizeUSD can be null if the track's specific prize amount isn't shown
+- If the page shows tracks but no prize amounts, include tracks with null prizes
+
+==================================================
+TEAM SIZE EXTRACTION RULES
+==================================================
+
+- Team sizes must be EXPLICITLY stated on the hackathon page.
+- If not stated, set BOTH min and max to null — never supply defaults.
+- Do NOT infer team size from hackathon platform, focus area, or
+  similar events on the same platform.
+- Sources to check: rules section, registration form, FAQ, about page.
+- Do NOT consult common assumptions (e.g., "most allow solo").
+
+==================================================
+QUALITY SCORING
+==================================================
+
+Calculate metadata.qualityScore from 0 to 100:
+
+- title present: +10
+- description present: +10
+- link (apply URL) present: +10
+- submissionDeadlineUTC present: +15
+- prize.totalUSD > 0: +10
+- entry.isFree known: +5
+- audience.mode known: +5
+- audience.location known: +5
+- hackathonDetails.platform known: +5
+- judgingCriteria.length > 0: +5
+- prizeBreakdown.length > 0: +5
+- engagement.totalParticipants > 0: +5
+- seo.metaTitle present: +5
+- seo.metaDescription present: +5
+
+Add missing important fields to metadata.errors using dot notation.
+
+Examples:
+["timeline.submissionDeadlineUTC", "prize.totalUSD", "judgingCriteria",
+ "audience.mode", "hackathonDetails.platform", "content.whyJoin"]
+
+==================================================
+SLUG RULES
+==================================================
+
+- The slug is auto-generated by the backend — do NOT set it in the output.
+- Set slug to null — it will be generated from title on save.
+
+==================================================
+QUALITY FILTERS (POST-EXTRACTION)
+==================================================
+
+After extraction, the system will check:
+
+1. REJECT if title is missing or clearly unidentifiable (< 5 chars)
+2. REJECT if submissionDeadlineUTC is more than 2 years in the past
+3. FLAG if link (apply URL) is missing — set flag "broken-link"
+4. FLAG if no prize information found — no flag needed
+5. FLAG if hackathon has already ended AND is more than 90 days past — 
+   set archivedAt
+
+These are system-level checks. Do NOT set them in the prompt output.
+
+==================================================
+FLAGS VOCABULARY
+==================================================
+
+When setting `flags` in the output, use ONLY these predefined values:
+
+- "unreliable-source" — source page is unclear, incomplete, duplicated,
+  cancelled, outdated, or unreliable (use instead of setting status)
+- "no-prize-info" — no prize information found on the page
+- "no-registration" — no registration/submission link found
+- "cancelled" — the source explicitly states the hackathon is cancelled
+- "postponed" — the source explicitly states the hackathon is postponed
+  (dates moved, not available)
+
+Do NOT invent new flag values. The system also sets these automatically
+in post-processing — do NOT set them in the AI output:
+- "broken-link" — link is dead (checked by post-processing)
+- "featured" — manually curated
+- "closed" — handled by server-side cron
+
+==================================================
+INPUT
+==================================================
+
+sourceName: {{sourceName}}
+sourceUrl: {{sourceUrl}}
+scrapedAt: {{scrapedAt}}
+rawTitle: {{rawTitle}}
+rawDescription: {{rawDescription}}
+rawDateText: {{rawDateText}}
+rawLocationText: {{rawLocationText}}
+rawOrganizerText: {{rawOrganizerText}}
+rawPricingText: {{rawPricingText}}
+rawRegistrationText: {{rawRegistrationText}}
+rawContent: {{rawHtmlOrPageText}}
+
+==================================================
+OUTPUT
+==================================================
+
+Return only ONE valid JSON object following the strict schema above.

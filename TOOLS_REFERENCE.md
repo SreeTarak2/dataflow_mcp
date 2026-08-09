@@ -782,5 +782,297 @@ If submit_full_generation reports failures:
 | 4 | bulk_apply_migrations | migrations_json | Multiple contests updated | Migration |
 | **5** | **get_records_for_full_generation** | source, limit, require_validated | Raw records + both prompts | **Full Generation** |
 | **6** | **submit_full_generation** | generation_json | Contest + details saved | **Full Generation** |
+| **7** | **find_duplicate_contests** | min_live (default 2) | Live duplicate-title groups | **Duplicate Audit** |
+| **8** | **get_records_for_events** | source, limit, collection_name | Raw event URLs + events prompt | **Events** |
+| **9** | **submit_structured_events** | events_json, dedupe_gate, keep_metadata | Events saved to Events collection | **Events** |
+| **10** | **get_events** | event_type, status, upcoming_only, limit, skip | Filtered events | **Events** |
+| **11** | **get_events_overview** | None | Events stats (by type/status/upcoming) | **Events** |
+| **12** | **get_events_for_detail_generation** | batch_size, skip | Events + event details prompt | **Events Details** |
+| **13** | **submit_event_details** | event_id, details_json | Versioned event_details saved | **Events Details** |
+| **14** | **get_event_detail_status** | None | Event details coverage metrics | **Events Details** |
 
 **New:** Tools #5 and #6 are the Full Generation Pipeline — raw → published in one pass.
+Tools #8–#11 are the **Events Pipeline** — raw event URLs → structured events in the
+`Events` collection, readable by AI chatbots via `get_events`.
+Tools #12–#14 are the **Events Details Pipeline** — AI-written detail pages
+(whyAttend, whoShouldAttend, benefits, tips, agenda highlights, FAQ, SEO) with
+versioned storage, mirroring the contest detail generation flow, plus
+`get_event_detail_status` to track coverage.
+
+---
+
+## 🛡️ Duplicate-Title Gate (ingestion safety)
+
+All three write tools — `submit_structured_records`, `submit_full_generation` and
+`process_raw_data` — accept a **`dedupe_gate`** parameter (default **`true`**).
+
+### What it does
+
+Before inserting, the tool checks every incoming title against all **live**
+contests in the collection using a **normalized-title key** (lowercase,
+alphanumeric-only, words *sorted* — the exact same normalization as the
+backend's `backend/scripts/dedupeContests.js`).
+
+| Incoming record | Gate behavior |
+|---|---|
+| Same source + **exact same title** | ✅ Passes — the intended re-submit / update path (upserts in place, as before) |
+| Same contest from a **different source** | 🚫 Blocked — reported under `duplicates` |
+| **Reworded title** from the same source (e.g. word-reordered) | 🚫 Blocked — reported under `duplicates` |
+| Repeats a record already in the same batch | 🚫 Blocked — reported under `duplicates` |
+
+Blocked records are **never written** — they are counted in a new `duplicates`
+field in the tool response, and each block is explained in `details` /
+`error_details` with the existing contest's `_id`, title, source and link.
+
+### Force-insert
+
+Pass **`dedupe_gate=false`** to restore the old behavior (e.g. intentional
+re-ingest or a genuine same-title series edition that must be kept separate).
+
+### On-demand audit
+
+`find_duplicate_contests()` is a read-only tool that returns every live
+duplicate-title group (with member `_id`s) so the collection can be audited or
+cleaned at any time. Archived contests are ignored.
+
+**Verified:** the gate blocks real duplicates with zero writes (tested against
+the live ContestHopperDb — 0 existing duplicate groups remain post-dedup).
+
+---
+
+# 🎪 Events Pipeline (participatory events → structured Events collection)
+
+Four tools let AI chatbots harvest, structure, persist, and query events
+(conferences, summits, workshops, webinars, meetups, expos, trade shows,
+career fairs, networking events, trainings, festivals) in one clean workflow.
+
+---
+
+## 8️⃣ **get_records_for_events**
+
+### Purpose
+Fetch raw event URLs/titles + the full events prompt (events-v1.1 schema) so a
+chatbot can research and structure participatory events.
+
+### Parameters
+- `source` (string, optional) — filter by scraper source field (e.g. `"women_opportunities_aug_2026"`)
+- `limit` (integer, 1-25, default 10) — max raw records to fetch
+- `collection_name` (string, default `"raw_urls"`) — raw DB collection to read from
+
+### Example Call
+```bash
+Tool: get_records_for_events
+Parameters:
+  source: "women_opportunities_aug_2026"
+  limit: 10
+```
+
+### What's in the Response
+- ✅ Raw event records (URLs/titles for the AI to research)
+- ✅ `prompt_text` — full events-v1.1 schema & rules (`event-structuring-v1.1.txt`)
+- ✅ Usage instructions telling the AI to output ONE event JSON per record
+
+### Next Step
+Chatbot structures each event with the prompt → submit via `submit_structured_events`.
+
+---
+
+## 9️⃣ **submit_structured_events**
+
+### Purpose
+Persist structured events (events-v1.1 schema) produced by a chatbot into the
+**Events** collection. The event counterpart of `submit_structured_records`.
+
+### Parameters
+- `events_json` (string) — single event object OR array of event objects
+- `dedupe_gate` (boolean, default true) — block duplicates by normalized title
+  (same semantics as the contest gate)
+- `keep_metadata` (boolean, default false) — retain each event's audit
+  `metadata` block (searchLog / fieldConfidence / discoveredEvents) instead of stripping it
+
+### Automatic Normalization
+- `type` forced to `"event"`, `slug` auto-generated from title if missing
+- Defaults: `status="draft"`, `visibility="public"`, `featured=false`, `analytics` zeros
+- Off-schema enum values (`eventType`, `registration.status`, `venue.mode`,
+  `difficultyLevel`, `status`) are downgraded to `null` and reported in `warnings`
+- Audit `metadata` block stripped unless `keep_metadata=true`
+- Dedup key: `source.name + title` (re-submits upsert in place)
+
+### Example Response
+```json
+{
+  "success": true,
+  "total_submitted": 3,
+  "inserted": 3,
+  "updated": 0,
+  "duplicates": 0,
+  "skipped": 0,
+  "errors": 0,
+  "event_warnings": 1,
+  "details": [],
+  "warnings": ["registration.status 'bogus' is invalid; set to null"]
+}
+```
+
+---
+
+## 🔟 **get_events**
+
+### Purpose
+Read structured events back with filters — e.g. all upcoming conferences, or
+draft events awaiting review.
+
+### Parameters
+- `event_type` (string, optional) — conference / summit / workshop / webinar /
+  meetup / expo / trade_show / career_fair / networking_event /
+  training_program / festival
+- `status` (string, optional) — published / draft / cancelled / archived
+- `upcoming_only` (boolean, default false) — only events with `eventDates.start` in the future
+- `limit` (integer, 1-100, default 20), `skip` (integer, default 0)
+
+---
+
+## 1️⃣1️⃣ **get_events_overview**
+
+### Purpose
+Get counts by `eventType` and `status`, plus upcoming-event count, to decide
+what to review or process next.
+
+---
+
+## 🔄 Complete Events Workflow
+
+```
+1. Tool: get_events_overview              → see what's already structured
+2. Tool: get_records_for_events(source=..., limit=10)
+   → 10 raw URLs + events-v1.1 prompt
+3. Chatbot researches each URL (speakers, agenda, pricing, venue subpages)
+   and outputs ONE event JSON per record
+4. Tool: submit_structured_events(events_json)
+   → events persisted to the Events collection
+5. Tool: get_events(event_type="conference", upcoming_only=true)
+   → read back the structured events
+6. Tool: get_events_for_detail_generation(batch_size=10)
+   → 10 events + event-details-v1.0.txt prompt
+7. Chatbot researches each event (speakers, agenda, pricing, venue) and
+   outputs event details JSON
+8. Tool: submit_event_details(event_id, details_json)
+   → versioned event_details saved (quality-validated)
+9. Tool: get_event_detail_status
+   → coverage metrics (how many events still need detail pages)
+```
+
+---
+
+## 1️⃣2️⃣ **get_events_for_detail_generation**
+
+### Purpose
+Return events needing AI-generated detail pages, sorted by priority, bundled
+with the full `event-details-v1.0.txt` prompt. The event counterpart of
+`get_contests_for_detail_generation`.
+
+### Parameters
+- `batch_size` (integer, 1-50, default 10), `skip` (integer, default 0)
+
+### Priority Order
+upcoming (`eventDates.start` in the future) > published > registration open >
+has speakers/agenda > recently added.
+
+---
+
+## 1️⃣3️⃣ **submit_event_details**
+
+### Purpose
+Submit AI-generated event details for validation and versioned storage into
+the `event_details` collection. The event counterpart of
+`submit_contest_details`.
+
+### Parameters
+- `event_id` (string) — MongoDB ObjectId of the event
+- `details_json` (string) — event-details-v1.0.txt schema JSON
+
+### Automatic Validation
+- Rejects truly empty content (< 50 words or no meaningful sections)
+- Honest `readingTime` recompute, first-person language check,
+  hallucinated-URL check, FAQ structure check, SEO length checks
+- Versioned upsert (`event_details` collection) with `previousVersionAt`,
+  `changeLog`, and a quality score
+
+### Example Response
+```json
+{
+  "success": true,
+  "version": 1,
+  "is_new": true,
+  "quality_score": 85,
+  "validation": { "valid": true, "warning_count": 1, "warnings": ["..."], "total_words": 540 }
+}
+```
+
+## 1️⃣4️⃣ **get_event_detail_status**
+
+### Purpose
+Read-only coverage metrics for the event detail generation pipeline — how many
+live events exist, how many already have `event_details`, how many still need
+them, the breakdown by detail status, and the coverage percentage. Surfaces
+`EventDetailGenerator.get_status()`.
+
+### Parameters
+None
+
+### Example Response
+```json
+{
+  "success": true,
+  "collection": "event_details",
+  "total_events": 100,
+  "total_with_details": 58,
+  "total_without_details": 42,
+  "by_status": { "completed": 58, "failed": 4 },
+  "coverage_pct": 58.0
+}
+```
+
+### When to Use
+- **Before generating:** see how much event-detail work remains
+- **Between batches:** track coverage % as `submit_event_details` runs
+- **Final check:** confirm `coverage_pct` reached 100 (or `total_without_details` is 0)
+
+---
+
+Prompt files now use descriptive names. The old `Prompts*.txt` names are kept
+as alias copies in `prompts/` so nothing breaks.
+
+| Canonical file (referenced by tools) | Alias (kept for compat) | Used by |
+|---|---|---|
+| `contest-structuring-v4.0.txt` | `Prompts.txt` | get_records_for_structuring, get_records_for_full_generation |
+| `contest-details-v1.0.txt` | `Prompts-contest-details.txt` | get_contests_for_detail_generation, submit_contest_details |
+| `event-structuring-v1.1.txt` | `Prompts-events.txt` | get_records_for_events |
+| `event-details-v1.0.txt` | `Prompts-event-details.txt` | get_events_for_detail_generation, submit_event_details |
+| `contest-backfill-v2.0.txt` | `Prompts-backfill.txt` | get_prompted_contests |
+| `validation-v1.0.txt` | `Prompts-validation.txt` | get_records_for_validation, get_validation_prompt |
+
+# 🧩 Code Structure (refactored)
+
+The ~3,300-line `main.py` monolith has been split into a proper package:
+
+```
+dataflow_mcp/
+├── core.py            # FastMCP instance, rate limiter, metrics, prompt loading, normalization helpers
+├── server.py          # tool registration + mcp.run()
+├── tools/
+│   ├── health.py      # health_check, database_status
+│   ├── crud.py        # read_collection, get_document, create/update/delete_document
+│   ├── images.py      # contest banner pipeline (missing/broken images, cover prompts, URL verify)
+│   ├── migration.py   # get_migration_status, get_contests_for_migration, apply/bulk patches
+│   ├── contests.py    # structuring + full generation + detail generation
+│   ├── events.py      # get_records_for_events, submit_structured_events, get_events, get_events_overview, get_events_for_detail_generation, submit_event_details, get_event_detail_status
+│   ├── raw_data.py    # get_raw_data_status, read_raw_collection, get_scraped_overview, process_raw_data
+│   ├── validation.py  # claim/submit validation, status, prompt
+│   └── audit.py       # find_duplicate_contests, flag_contest_discrepancy
+main.py                # thin entry point → dataflow_mcp.server
+```
+
+Run with `python main.py`, `python -m dataflow_mcp.server`, or the installed
+`dataflow-mcp` console script. All 41 tools keep their exact names — no client
+changes needed.

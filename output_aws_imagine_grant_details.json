@@ -1,0 +1,120 @@
+{
+  "content": {
+    "hero": {
+      "subheadline": "Up to USD 200,000 in unrestricted funding for nonprofits",
+      "valueProposition": "Cash awards from USD 50,000 to 200,000 plus AWS promotional credit for nonprofits using cloud and AI to accelerate their missions."
+    },
+    "whyJoin": "The AWS Imagine Grant is one of the larger unrestricted technology grants available to nonprofits. Instead of funding a specific project with tight restrictions, it lets winning organizations decide how to use the money while pairing it with up to USD 100,000 in AWS Promotional Credit, implementation guidance, and training.\n\nIt runs once a year in two rounds and covers three tiers so organizations at different stages of technology adoption can apply: Pathfinder (up to USD 200,000), Go Further, Faster (up to USD 150,000), and Momentum to Modernize (up to USD 50,000).\n\nAWS accepts all causes and mission areas, so nonprofits from health to human services to the arts can compete.",
+    "whoShouldApply": "This grant is for registered 501(c) nonprofit organizations based in the United States, including 501(c)(3) charities, credit unions, and public utilities, plus registered equivalents in the UK, Ireland, Canada, Australia, and New Zealand. Organizations of any budget size can apply.\n\nIt fits nonprofits that want to use cloud technology, data, or AI to advance their mission - from migrating legacy systems to building new AI-powered services. Note that educational institutions are currently excluded.",
+    "benefits": [
+      "Up to USD 200,000 in unrestricted financial support",
+      "Up to USD 100,000 in AWS Promotional Credit",
+      "Implementation guidance from AWS technical specialists",
+      "Access to AWS training and support",
+      "AWS marketing promotion for winning projects"
+    ],
+    "tips": [
+      "Review the three award tiers and pick the one that matches your project and stage",
+      "Round One is the screening stage, so make the application clear, complete, and well-structured",
+      "Explain the intended outcomes and what the project would unlock for your organization",
+      "The cycle runs once a year, so confirm current cycle dates on the official page before applying",
+      "Educational institutions should check the separate AWS Education Equity Initiative instead"
+    ],
+    "shouldYouApply": {
+      "idealFor": "This is ideal for a registered 501(c) (or equivalent) nonprofit that wants flexible funding plus cloud and AI capacity to accelerate its mission, at any stage of technology adoption.",
+      "goodFit": [
+        "A nonprofit modernizing legacy IT systems",
+        "An organization using data and AI to serve constituents better",
+        "A charity launching a new cloud-based service",
+        "A US-based nonprofit with a clear project and outcomes"
+      ],
+      "notIdealFor": [
+        "Schools, colleges, and universities (currently excluded)",
+        "Organizations without registered nonprofit status in an eligible country"
+      ]
+    },
+    "faq": [
+      {
+        "question": "Who can apply for the AWS Imagine Grant?",
+        "answer": "Registered 501(c) nonprofits in the United States and equivalents in the UK, Ireland, Canada, Australia, and New Zealand. Educational institutions are excluded."
+      },
+      {
+        "question": "How much can a nonprofit win?",
+        "answer": "Unrestricted financial support ranges from up to USD 50,000 (Momentum to Modernize) to up to USD 200,000 (Pathfinder), with up to USD 100,000 in AWS Promotional Credit at the top tier."
+      },
+      {
+        "question": "How does the application cycle work?",
+        "answer": "The grant accepts proposals once annually. Round One is open to all eligible applicants; Round Two is invitation-only based on Round One evaluation."
+      },
+      {
+        "question": "When is the deadline?",
+        "answer": "For the 2026-2027 US cycle, the Round One portal closed on 5 June 2026. Check the official AWS Imagine Grant page for the next cycle's timeline."
+      }
+    ],
+    "submissionGuide": [
+      {
+        "step": "Download the proposal guidelines",
+        "detail": "Get the official guidelines and review the award tiers, eligibility, and evaluation criteria."
+      },
+      {
+        "step": "Choose your award category",
+        "detail": "Select one tier (Pathfinder, Go Further, Faster, or Momentum to Modernize) and prepare your answers."
+      },
+      {
+        "step": "Submit your Round One application",
+        "detail": "Complete the online form within the Round One window, providing organizational and project information."
+      },
+      {
+        "step": "Advance to Round Two",
+        "detail": "If invited, submit your full proposal for your selected award category."
+      }
+    ],
+    "timelineSummary": [
+      {
+        "phase": "Round One",
+        "date": "19 Mar - 5 Jun 2026",
+        "label": "2026-2027 US cycle; application portal opens and closes"
+      },
+      {
+        "phase": "Round One results",
+        "date": "14 Jul 2026",
+        "label": "Email notification and Round Two invitations"
+      },
+      {
+        "phase": "Round Two",
+        "date": "10 Aug - 14 Sep 2026",
+        "label": "Invitation-only portal"
+      },
+      {
+        "phase": "Winners announced",
+        "date": "1 Dec 2026",
+        "label": "Public announcement of Imagine Grant winners"
+      }
+    ],
+    "readingTime": 5,
+    "seo": {
+      "metaTitle": "AWS Imagine Grant 2026",
+      "metaDescription": "AWS Imagine Grant offers US and equivalent nonprofits up to USD 200,000 in unrestricted funding plus AWS credits for cloud and AI projects. See tiers, eligibility, and timeline.",
+      "keywords": [
+        "AWS Imagine Grant",
+        "nonprofit technology grant",
+        "AWS credits for nonprofits",
+        "cloud funding nonprofits",
+        "AI grant nonprofits 2026",
+        "501c3 technology funding"
+      ]
+    }
+  },
+  "seo": {
+    "metaTitle": "AWS Imagine Grant 2026",
+    "metaDescription": "AWS Imagine Grant offers US and equivalent nonprofits up to USD 200,000 in unrestricted funding plus AWS credits for cloud and AI projects. See tiers, eligibility, and timeline.",
+    "keywords": [
+      "AWS Imagine Grant",
+      "nonprofit technology grant",
+      "AWS credits for nonprofits",
+      "cloud funding nonprofits",
+      "AI grant nonprofits 2026",
+      "501c3 technology funding"
+    ]
+  }
+}

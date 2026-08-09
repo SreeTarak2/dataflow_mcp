@@ -1,0 +1,86 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/photo-israel-2026-international-photography-festival/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Photography",
+  "category": "Creative Arts",
+  "subCategory": "Photography",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/07/PHOTO-ISRAEL-2026-International-Photography-Festival.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "PHOTO IS:RAEL 2026 International Photography Festival"
+  },
+  "title": "PHOTO IS:RAEL 2026 International Photography Festival",
+  "description": "Submit photography, film, video, animation, or hybrid works for the 13th Photography Festival. Open to artists worldwide.",
+  "descriptionDetailed": "The 13th International Photography Festival invites proposals for its Main Exhibition themed CITIZENS. Accepted media include photography, film, video, performance documentation, animation, and hybrid forms. Selected works are exhibited in the Main Exhibition, featured in the festival catalog, and displayed on the website.",
+  "link": "https://opencall.photoisrael.org/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 22,
+      "currency": "USD"
+    },
+    "feeConfidence": "extracted",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": false,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": "Certificate + exhibition",
+    "description": null
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "Open to artists worldwide",
+    "eligibilityDetail": null,
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": "2026-07-02T00:00:00",
+    "submissionDeadlineUTC": "2026-07-28T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "Asia/Jerusalem"
+  },
+  "tags": [
+    "photography",
+    "citizens",
+    "open-call"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image",
+      "video"
+    ],
+    "medium": [
+      "physical",
+      "digital"
+    ],
+    "themes": [
+      "social-impact",
+      "civic-engagement"
+    ]
+  },
+  "lastVerifiedAt": "2026-07-26T07:17:58+00:00"
+}

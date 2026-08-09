@@ -1,0 +1,95 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/jagda-international-student-poster-award-2026/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Graphic Design",
+  "category": "Creative Arts",
+  "subCategory": "Graphic Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/05/JAGDA-International-Student-Poster-Award-2026.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "JAGDA International Student Poster Award 2026"
+  },
+  "title": "JAGDA International Student Poster Award 2026",
+  "description": "Submit a B1 poster including the word Harmony to JAGDA's 2026 student poster award, open to student designers worldwide.",
+  "descriptionDetailed": "JAGDA International Student Poster Award 2026 invites students worldwide, from high school and above, to submit B1 portrait posters with the word Harmony. About 200 works are selected and exhibited at the National Art Center, Tokyo, with Grand Prix, Gold, Silver, Bronze, and Jury awards. Entry fee: 1,000 yen per poster; stock photos prohibited.",
+  "link": "https://jagda-gakusei.jp/en/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 1000,
+      "currency": "JPY"
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": "1,000 JPY per poster; 2,000 JPY for a 2-poster series; 3,000 JPY for a 3-poster series"
+  },
+  "prize": {
+    "isMonetary": false,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": "Grand Prix, Gold, Silver, Bronze, Jury, and sponsor awards",
+    "description": "Grand Prix (1 work), Gold (2 works), Silver (5 works), Bronze (10 works), Jury Award (5 works), Committee Member Award (6 works), and Special Sponsorship Award (approximately 20 works). Approximately 200 works are selected. All winning and selected works are exhibited at the National Art Center, Tokyo from November 25 to December 7, 2026 and published in the official catalog."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate"
+    ],
+    "primarySkillLevel": "intermediate",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "For students worldwide",
+    "eligibilityDetail": "Open to students worldwide at high school level and above, regardless of nationality or age. Posters must be B1 size (728mm x 1,030mm), portrait orientation only, produced between August 2025 and July 2026.",
+    "constraints": {
+      "participantType": [
+        "students"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": 1
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": "2026-05-01T00:00:00",
+    "submissionDeadlineUTC": "2026-07-31T23:59:00",
+    "eventEndUTC": "2026-12-07T23:59:00",
+    "organizerTimeZone": "Asia/Tokyo"
+  },
+  "tags": [
+    "poster-design",
+    "harmony",
+    "open-call"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "physical",
+      "digital"
+    ],
+    "themes": [
+      "harmony"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

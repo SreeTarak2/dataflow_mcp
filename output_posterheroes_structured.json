@@ -1,0 +1,98 @@
+{
+  "type": "contest",
+  "source": {
+    "name": "contestwatchers",
+    "url": "https://www.contestwatchers.com/posterheroes-2026-still-human/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Graphic Design",
+  "category": "Creative Arts",
+  "subCategory": "Graphic Design",
+  "image": {
+    "primary": {
+      "url": "https://www.contestwatchers.com/wp-content/uploads/2026/04/Posterheroes-2026-Still-Human-Design-Competition.webp",
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "Posterheroes 2026 – Still Human"
+  },
+  "title": "Posterheroes 2026 – Still Human",
+  "description": "Create a 70x100cm poster on the Still Human theme, exploring humanity in the age of artificial intelligence.",
+  "descriptionDetailed": "Posterheroes 15 – Still Human invites designers to explore delegation and responsibility, automation and choice, efficiency and creativity in the age of artificial intelligence. The free contest is open to creatives worldwide, with up to three unpublished 70x100cm posters. Winners share the Favini Mention of €2,500 and the Time2 Mention of €1,500.",
+  "link": "https://www.posterheroes.org/",
+  "flags": [],
+  "entry": {
+    "isFree": true,
+    "fee": {
+      "amount": 0,
+      "currency": null
+    },
+    "feeConfidence": "confirmed",
+    "feeNote": null
+  },
+  "prize": {
+    "isMonetary": true,
+    "originalAmount": "€4,000",
+    "totalUSD": 4320,
+    "currency": "EUR",
+    "prizeSummary": "Cash prizes totaling €4,000",
+    "description": "Favini Mention €2,500 and Fondazione Time2 Mention €1,500, with more mentions announced later. The jury selects 40 winning posters, and authors of winning works receive a copy of the 2027 Calendar."
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": null,
+      "max": null
+    },
+    "eligibilityLabel": "Open to creatives of all ages and nationalities",
+    "eligibilityDetail": "Open to individual authors and groups, including students, professional designers, and anyone interested in graphic design. Posters must be unpublished, 70x100cm, with all text in English.",
+    "constraints": {
+      "participantType": [
+        "individuals",
+        "teams"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": 1,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Worldwide",
+    "mode": "online"
+  },
+  "timeline": {
+    "startDateUTC": null,
+    "submissionDeadlineUTC": "2026-08-16T23:59:00",
+    "eventEndUTC": null,
+    "organizerTimeZone": "Europe/Rome"
+  },
+  "tags": [
+    "poster-design",
+    "artificial-intelligence",
+    "open-call"
+  ],
+  "filterKeys": {
+    "domain": "creative-arts",
+    "format": [
+      "image"
+    ],
+    "medium": [
+      "digital",
+      "physical"
+    ],
+    "themes": [
+      "artificial-intelligence",
+      "social-impact"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-01T00:00:00+00:00"
+}

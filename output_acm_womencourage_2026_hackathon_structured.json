@@ -1,0 +1,96 @@
+{
+  "type": "hackathon",
+  "source": {
+    "name": "internshala",
+    "url": "https://internshala.com/competitions/acm-womencourage-2026-hackathon-eligibility-dates-registration-fee-prizes-how-to-join/",
+    "type": "aggregator"
+  },
+  "rawCategory": "Hackathon",
+  "category": "Technology & AI",
+  "image": {
+    "primary": {
+      "url": null,
+      "source": "external",
+      "status": "active"
+    },
+    "backup": null,
+    "alt": "ACM womENcourage 2026 Hackathon"
+  },
+  "title": "ACM womENcourage 2026 Hackathon",
+  "description": "Build tech solutions for well-being and inclusion in computing at a full-day in-person hackathon in Sophia Antipolis, France. Open to participants of all genders aged 18 and above.",
+  "descriptionDetailed": "The womENcourage hackathon runs on the opening day of the ACM Celebration of Women in Computing, focusing on how computer science can drive well-being. Participants work in teams through ideation, solution development, slide deck creation, and a final pitch before judges. The hackathon is open to all genders, nationalities, and experience levels - interest in technology is the only requirement - and is included in conference registration.",
+  "link": "https://womencourage.acm.org/2026/index.php/join-the-hackathon/",
+  "flags": [],
+  "entry": {
+    "isFree": false,
+    "fee": {
+      "amount": 90,
+      "currency": "EUR"
+    },
+    "feeConfidence": "extracted",
+    "feeNote": "Hackathon access is included in conference registration. Early rates from EUR 90 (student ACM member) to EUR 590 (industry); late rates are higher. Scholarships provide free registration to selected students and early-career professionals."
+  },
+  "prize": {
+    "isMonetary": null,
+    "originalAmount": null,
+    "totalUSD": null,
+    "currency": null,
+    "prizeSummary": null,
+    "description": null
+  },
+  "audience": {
+    "skillLevels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "primarySkillLevel": "open",
+    "skillLevelSource": "explicit",
+    "age": {
+      "min": 18,
+      "max": null
+    },
+    "eligibilityLabel": "Open to all genders aged 18 and above",
+    "eligibilityDetail": "No prior IT experience is mandatory; interest in technology is the key requirement. Multidisciplinary teams from computer science, software development, cybersecurity, data science, AI, design, and related fields are encouraged.",
+    "constraints": {
+      "participantType": [
+        "students",
+        "recent_graduates",
+        "researchers",
+        "individuals"
+      ],
+      "academicStatus": null,
+      "graduationAfter": null,
+      "teamSize": {
+        "min": null,
+        "max": null
+      },
+      "organizationFoundedAfter": null
+    },
+    "location": "Sophia Antipolis, France",
+    "mode": "in-person"
+  },
+  "timeline": {
+    "startDateUTC": "2026-09-30T00:00:00",
+    "submissionDeadlineUTC": "2026-09-03T23:59:00",
+    "eventEndUTC": "2026-10-02T23:59:00",
+    "organizerTimeZone": "Europe/Paris"
+  },
+  "tags": [
+    "wellbeing",
+    "women-in-computing",
+    "pitch-competition"
+  ],
+  "filterKeys": {
+    "domain": "technology-ai",
+    "format": [],
+    "medium": [
+      "physical"
+    ],
+    "themes": [
+      "wellbeing",
+      "women-in-computing"
+    ]
+  },
+  "lastVerifiedAt": "2026-08-06T00:00:00+00:00"
+}
