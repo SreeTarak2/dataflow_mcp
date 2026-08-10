@@ -62,6 +62,8 @@ FINAL SCHEMA (STRICT)
 
   "flags": [],
 
+  "audienceScope": null,
+
   "entry": {
     "isFree": null,
     "fee": {
@@ -190,6 +192,18 @@ Rules:
 - Leave flags: [] when gender info is absent or unclear
 - "hero" and "women" can coexist when a women-exclusive contest
   is also hero-worthy: flags: ["hero", "women"]
+
+==================================================
+AUDIENCE SCOPE RULES (STRICT)
+==================================================
+audienceScope is the CANONICAL field for the For Her page. Set it
+TOGETHER with the gender flags above:
+
+- flags: ["women"]  → ALSO set "audienceScope": "women"
+- flags: ["all"]    → ALSO set "audienceScope": "all"
+- otherwise         → "audienceScope": null
+
+audienceScope may only be "women", "all", or null — never any other value.
 
 ==================================================
 CATEGORY RULES (STRICT)

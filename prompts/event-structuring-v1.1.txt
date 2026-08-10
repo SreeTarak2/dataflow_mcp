@@ -288,6 +288,7 @@ FINAL SCHEMA (STRICT)
     "lastValidated": ""
   },
   "flags": [],
+  "audienceScope": null,
   "status": "draft",
   "visibility": "public",
   "featured": false,
@@ -310,6 +311,27 @@ FINAL SCHEMA (STRICT)
     "otherListings": []
   }
 }
+
+==================================================
+AUDIENCE SCOPE RULES (STRICT)
+==================================================
+audienceScope is the CANONICAL field for the For Her page. It classifies
+WHO the event is for, by gender:
+
+- "women" → event is EXCLUSIVELY for women (women-only workshop, women in
+            tech summit, girls' bootcamp, etc.). Do NOT set if open to
+            any other gender.
+- "all"   → event is explicitly open to all genders. Set when the source
+            shows no gender restriction (most conferences, summits,
+            webinars, meetups).
+
+Set it TOGETHER with flags:
+- audienceScope "women" → also set flags: ["women"]
+- audienceScope "all"   → also set flags: ["all"]
+- otherwise             → "audienceScope": null, flags: []
+
+"women" and "all" must NOT coexist. When gender info is absent or
+unclear, leave audienceScope null (do NOT speculate).
 
 ==================================================
 ENUMS AND NORMALIZATION RULES

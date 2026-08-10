@@ -59,6 +59,8 @@ FINAL SCHEMA (STRICT)
 
   "flags": [],
 
+  "audienceScope": null,
+
   "entry": {
     "isFree": null,
     "fee": {
@@ -165,6 +167,18 @@ flags is an array. Only use values from this list:
 - NEVER speculate
 - "hero" and "women" can coexist in the same entry
 - "all" and "women" must NOT coexist — they are opposites
+
+==================================================
+AUDIENCE SCOPE RULES (STRICT)
+==================================================
+audienceScope is the CANONICAL field for the For Her page. Set it
+TOGETHER with the gender flags above:
+
+- flags: ["women"]  → ALSO set "audienceScope": "women"
+- flags: ["all"]    → ALSO set "audienceScope": "all"
+- otherwise         → "audienceScope": null
+
+audienceScope may only be "women", "all", or null — never any other value.
 
 ==================================================
 CATEGORY RULES (STRICT)

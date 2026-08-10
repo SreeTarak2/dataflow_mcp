@@ -317,10 +317,31 @@ def _build_normalized_record(
     ):
         normalized["type"] = record["type"]
 
-    # flags — v4.0 schema: ["women"] for women-exclusive contests
+    # flags — v4.0 schema: ["women"] (women-exclusive) / ["all"] (gender-neutral).
+    # audienceScope is the canonical For Her classifier — carried alongside and
+    # kept in sync so the transition-safe invariant always holds on writes.
     flags = record.get("flags", [])
-    if isinstance(flags, list) and any(f in ("women",) for f in flags):
-        normalized["flags"] = [f for f in flags if f in ("women",)]
+    gender_flags = [f for f in (flags if isinstance(flags, list) else []) if f in ("women", "all")]
+    # 'women' and 'all' are opposites per the prompts — if the model emits both,
+    # 'women' (the more restrictive classification) wins deterministically.
+    if "women" in gender_flags:
+        gender_flags = ["women"]
+    elif "all" in gender_flags:
+        gender_flags = ["all"]
+
+    audience_scope = record.get("audienceScope")
+    if audience_scope not in ("women", "all", None):
+        audience_scope = None  # invalid value → treated as unset
+
+    if audience_scope is not None:
+        if audience_scope not in gender_flags:
+            gender_flags.append(audience_scope)
+        normalized["audienceScope"] = audience_scope
+    elif gender_flags:
+        normalized["audienceScope"] = gender_flags[0]
+
+    if gender_flags:
+        normalized["flags"] = gender_flags
 
     # Simple string fields
     if "description" in record and record["description"]:
@@ -569,6 +590,7 @@ _EVENT_FIELDS = (
     "seo",
     "quality",
     "flags",
+    "audienceScope",
     "isRecurring",
     "recurrence",
     "customFields",
@@ -638,6 +660,33 @@ def _build_normalized_event(
     for field in _EVENT_FIELDS:
         if field in record and record[field] is not None:
             normalized[field] = copy.deepcopy(record[field])
+
+    # audienceScope — canonical For Her classifier. Validate the enum and keep
+    # it synced with flags (the model may set one without the other).
+    ev_scope = normalized.get("audienceScope")
+    if ev_scope is not None and ev_scope not in ("women", "all"):
+        warnings.append(f"audienceScope '{ev_scope}' is not in ('women', 'all'); set to null")
+        normalized["audienceScope"] = None
+        ev_scope = None
+    ev_flags = normalized.get("flags")
+    if not isinstance(ev_flags, list):
+        ev_flags = []
+    gender_flags = [f for f in ev_flags if f in ("women", "all")]
+    other_flags = [f for f in ev_flags if f not in ("women", "all")]
+    # 'women' wins over 'all' when both appear (they are opposites).
+    if "women" in gender_flags:
+        gender_flags = ["women"]
+    elif "all" in gender_flags:
+        gender_flags = ["all"]
+    if ev_scope in ("women", "all"):
+        if ev_scope not in gender_flags:
+            gender_flags.append(ev_scope)
+    elif gender_flags:
+        normalized["audienceScope"] = gender_flags[0]
+    # Always preserve non-gender lifecycle flags (event-ended, capacity-limited,
+    # free-event, …) — only women/all are managed here.
+    if gender_flags:
+        normalized["flags"] = gender_flags + other_flags
 
     # slug — generate from title when missing
     slug = normalized.get("slug")
