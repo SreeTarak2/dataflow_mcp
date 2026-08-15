@@ -560,6 +560,14 @@ EVENT_REGISTRATION_STATUSES = {"open", "closed", "waitlist"}
 EVENT_VENUE_MODES = {"online", "offline", "hybrid"}
 EVENT_DIFFICULTY_LEVELS = {"beginner", "intermediate", "advanced"}
 EVENT_STATUSES = {"published", "draft", "cancelled", "archived"}
+EVENT_RECURRENCE_FREQUENCIES = {
+    "annual",
+    "biannual",
+    "quarterly",
+    "monthly",
+    "weekly",
+    "irregular",
+}
 
 # Whitelist of event fields persisted verbatim (everything except the audit
 # metadata block, which is stripped unless keep_metadata=True).
@@ -706,9 +714,7 @@ def _build_normalized_event(
         None,
         *EVENT_REGISTRATION_STATUSES,
     ):
-        warnings.append(
-            f"registration.status '{registration['status']}' is invalid; set to null"
-        )
+        warnings.append(f"registration.status '{registration['status']}' is invalid; set to null")
         registration["status"] = None
 
     venue = normalized.get("venue")
@@ -736,6 +742,42 @@ def _build_normalized_event(
                 )
                 insights[score_key] = None
 
+    # Validate recurrence fields
+    is_recurring = normalized.get("isRecurring")
+    if is_recurring is not None and not isinstance(is_recurring, bool):
+        warnings.append(f"isRecurring must be boolean or null; set to null")
+        normalized["isRecurring"] = None
+        is_recurring = None
+
+    recurrence = normalized.get("recurrence")
+    if isinstance(recurrence, dict):
+        freq = recurrence.get("frequency")
+        if freq is not None and freq not in EVENT_RECURRENCE_FREQUENCIES:
+            warnings.append(f"recurrence.frequency '{freq}' is invalid; set to null")
+            recurrence["frequency"] = None
+        edition = recurrence.get("edition")
+        if edition is not None and not isinstance(edition, int):
+            warnings.append(f"recurrence.edition must be integer or null; set to null")
+            recurrence["edition"] = None
+        series_name = recurrence.get("seriesName")
+        if series_name is not None and not isinstance(series_name, str):
+            warnings.append(f"recurrence.seriesName must be string or null; set to null")
+            recurrence["seriesName"] = None
+        next_hint = recurrence.get("nextEditionHint")
+        if next_hint is not None and not isinstance(next_hint, str):
+            warnings.append(f"recurrence.nextEditionHint must be string or null; set to null")
+            recurrence["nextEditionHint"] = None
+    elif recurrence is not None and not isinstance(recurrence, dict):
+        warnings.append(f"recurrence must be object or null; set to null")
+        normalized["recurrence"] = None
+
+    # If isRecurring is false or null, recurrence should be null
+    if is_recurring is False and recurrence is not None:
+        normalized["recurrence"] = None
+    elif is_recurring is None and recurrence is not None:
+        # Allow recurrence object even if isRecurring is null (partial data)
+        pass
+
     status = record.get("status")
     if status not in EVENT_STATUSES:
         if status is not None:
@@ -747,9 +789,7 @@ def _build_normalized_event(
     visibility = record.get("visibility")
     if visibility not in ("public", "private"):
         if visibility is not None:
-            warnings.append(
-                f"visibility '{visibility}' is invalid; defaulted to 'public'"
-            )
+            warnings.append(f"visibility '{visibility}' is invalid; defaulted to 'public'")
         normalized["visibility"] = "public"
     else:
         normalized["visibility"] = visibility

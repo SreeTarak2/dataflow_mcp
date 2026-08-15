@@ -461,6 +461,8 @@ class ContestDetailGenerator:
             meaningful_keys = [k for k in content.keys() if k != "readingTime"]
             has_meaningful_content = len(meaningful_keys) > 0
 
+            # Flatten content fields to top level to match existing database schema
+            # (existing documents have whyJoin, whoShouldApply, benefits, tips, readingTime at top level)
             doc = {
                 "contestId": contest_oid,
                 "version": new_version,
@@ -474,13 +476,17 @@ class ContestDetailGenerator:
                     if is_new
                     else f"Regeneration (v{existing['version']} -> v{new_version})"
                 ),
-                "content": content,
-                "seo": seo,
-                "metadata": {
-                    "pipelineSteps": ["prompt", "generate", "validate", "save"],
-                    "qualityScore": max(0, 100 - len(warnings) * 15),
-                    "warnings": warnings if warnings else [],
-                },
+            }
+            # Merge content fields at top level
+            doc.update(content)
+            # Add SEO fields at top level
+            if seo:
+                doc["seo"] = seo
+            # Add metadata
+            doc["metadata"] = {
+                "pipelineSteps": ["prompt", "generate", "validate", "save"],
+                "qualityScore": max(0, 100 - len(warnings) * 15),
+                "warnings": warnings if warnings else [],
             }
 
             self.details_collection.update_one(
@@ -555,6 +561,21 @@ class ContestDetailGenerator:
 
             now = datetime.now(timezone.utc)
 
+            # Fields to rollback (content + seo fields, excluding metadata/system fields)
+            system_fields = {
+                "_id",
+                "contestId",
+                "version",
+                "schemaVersion",
+                "status",
+                "generatedBy",
+                "generatedAt",
+                "previousVersionAt",
+                "changeLog",
+                "metadata",
+            }
+            rollback_data = {k: v for k, v in previous.items() if k not in system_fields}
+
             self.details_collection.update_one(
                 {"_id": current["_id"]},
                 {
@@ -567,8 +588,7 @@ class ContestDetailGenerator:
                             f"Rolled back from v{current['version']} to v{previous['version']}"
                         ),
                         "status": "completed",
-                        "content": previous["content"],
-                        "seo": previous.get("seo", {}),
+                        **rollback_data,
                     }
                 },
             )

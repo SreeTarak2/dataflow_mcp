@@ -293,7 +293,12 @@ FINAL SCHEMA (STRICT)
   "visibility": "public",
   "featured": false,
   "isRecurring": false,
-  "recurrence": null,
+  "recurrence": {
+    "frequency": null,
+    "edition": null,
+    "seriesName": null,
+    "nextEditionHint": null
+  },
   "analytics": {
     "views": 0,
     "registrations": 0,
@@ -393,6 +398,18 @@ targetAudience may include only values from:
   "Entrepreneurs",
   "Job Seekers"
 ]
+
+recurrence.frequency must be one of:
+[
+  "annual",
+  "biannual",
+  "quarterly",
+  "monthly",
+  "weekly",
+  "irregular"
+]
+
+Use null if recurrence frequency is unknown.
 
 status must be:
 - "published" only if title, source.url, eventDates.start, and enough venue or
@@ -547,6 +564,123 @@ SLUG RULES
 - Remove duplicate hyphens.
 - Trim leading and trailing hyphens.
 - Do not include random IDs.
+
+==================================================
+RECURRENCE EXTRACTION RULES
+==================================================
+
+isRecurring:
+- Set to true only if the source explicitly indicates this is a recurring
+  event series (e.g. "annual conference", "5th edition", "yearly summit",
+  "monthly meetup", "quarterly workshop").
+- Set to false for one-time events or when recurrence is not mentioned.
+- Use null if unclear — do not guess.
+
+recurrence (object, only when isRecurring = true):
+{
+  "frequency": "annual" | "biannual" | "quarterly" | "monthly" | "weekly" | "irregular",
+  "edition": integer (e.g. 5 for "5th edition"),
+  "seriesName": string (the overarching series name if different from event title),
+  "nextEditionHint": string or null (e.g. "typically held in March", "next edition 2025")
+}
+- frequency must be one of the listed enum values.
+- edition: extract from "Nth edition", "edition N", "year N" phrasing.
+- seriesName: use if event title includes year/edition but series has a
+  perennial name (e.g. title "Web Summit 2024" → seriesName "Web Summit").
+- nextEditionHint: only if source mentions typical timing or announced next edition.
+- If recurrence info is partial, include known fields and set unknown to null.
+- Do not infer recurrence from the event title alone (e.g. "2024" in title
+  does not mean annual — could be one-time).
+
+==================================================
+CUSTOMFIELDS USAGE
+==================================================
+
+customFields: object for source-specific or non-standard data that does not
+fit the main schema. Use sparingly.
+
+Examples of appropriate customFields:
+- "cfpDeadline": "2024-03-15" (if source has call-for-papers deadline)
+- "appDeadline": "2024-06-01" (if source has application deadline distinct from registration)
+- "dressCode": "business casual" (if explicitly stated)
+- "language": "English" (if multi-language event specifies primary language)
+- "accessibility": ["wheelchair accessible", "sign language interpretation"]
+- "covidPolicy": "vaccination required" (if explicitly stated)
+- "studentDiscount": true (if explicitly mentioned)
+
+Rules:
+- Only add fields explicitly present in the source.
+- Use camelCase keys.
+- Values must be source-backed (string, number, boolean, or array).
+- Do not duplicate fields already in the main schema.
+- If no custom fields apply, use {}.
+
+==================================================
+FEW-SHOT EXAMPLES
+==================================================
+
+EXAMPLE 1: Large annual conference with full data
+Input: Raw data for "Web Summit 2024" in Lisbon, multi-day, 1000+ speakers,
+ticket tiers, venue, agenda PDFs, sponsors listed.
+Output: {
+  "type": "event",
+  "title": "Web Summit 2024",
+  "slug": "web-summit-2024",
+  "eventType": "conference",
+  "eventDates": { "start": "2024-11-11T09:00:00", "end": "2024-11-14T18:00:00", "timezone": "Europe/Lisbon", "duration": "4 days" },
+  "venue": { "mode": "offline", "venueName": "Altice Arena", "address": { "city": "Lisbon", "country": "Portugal" }, ... },
+  "registration": { "status": "open", "url": "https://websummit.com/tickets", "fee": 895, "currency": "EUR", ... },
+  "speakers": [ { "name": "Satya Nadella", "title": "CEO", "company": "Microsoft", ... }, ... ],
+  "agenda": [ { "title": "Opening Keynote", "speaker": "Satya Nadella", "startTime": "2024-11-11T09:00:00", ... }, ... ],
+  "pricing": [ { "name": "Standard Pass", "price": 895, "currency": "EUR", "includes": [...] }, ... ],
+  "isRecurring": true,
+  "recurrence": { "frequency": "annual", "edition": 2024, "seriesName": "Web Summit" },
+  "audienceScope": "all",
+  "flags": ["all"],
+  "quality": { "contentCompletenessScore": 95, "missingFields": [], ... }
+}
+
+EXAMPLE 2: Women-only workshop, limited data
+Input: Raw data for "Women in AI Workshop 2024" in Berlin, 1-day, 5 speakers,
+free registration, venue known, no agenda details.
+Output: {
+  "type": "event",
+  "title": "Women in AI Workshop 2024",
+  "slug": "women-in-ai-workshop-2024",
+  "eventType": "workshop",
+  "eventDates": { "start": "2024-06-15T10:00:00", "end": "2024-06-15T17:00:00", "timezone": "Europe/Berlin", "duration": "1 day" },
+  "venue": { "mode": "offline", "venueName": "Factory Berlin", "address": { "city": "Berlin", "country": "Germany" }, ... },
+  "registration": { "status": "open", "url": "https://example.com/register", "fee": 0, "currency": "EUR", ... },
+  "speakers": [ { "name": "Dr. Anna Mueller", "title": "ML Researcher", "company": "TU Berlin", ... }, ... ],
+  "agenda": [],
+  "pricing": [],
+  "isRecurring": false,
+  "recurrence": null,
+  "audienceScope": "women",
+  "flags": ["women"],
+  "quality": { "contentCompletenessScore": 60, "missingFields": ["agenda", "pricing", "detailedOverview"], ... }
+}
+
+EXAMPLE 3: Online webinar, minimal data
+Input: Raw data for "Intro to LLMs Webinar" on Zoom, 2 hours, free,
+organizer known, no speakers listed yet.
+Output: {
+  "type": "event",
+  "title": "Intro to LLMs Webinar",
+  "slug": "intro-to-llms-webinar",
+  "eventType": "webinar",
+  "eventDates": { "start": "2024-07-20T18:00:00", "end": "2024-07-20T20:00:00", "timezone": "UTC", "duration": "2 hours" },
+  "venue": { "mode": "online", "virtualPlatform": "Zoom", ... },
+  "registration": { "status": "open", "url": "https://zoom.us/webinar/...", "fee": 0, "currency": "USD", ... },
+  "speakers": [],
+  "agenda": [],
+  "pricing": [],
+  "isRecurring": null,
+  "recurrence": null,
+  "audienceScope": "all",
+  "flags": ["all"],
+  "quality": { "contentCompletenessScore": 45, "missingFields": ["eventDates.start", "speakers", "agenda", "organizer.name"], ... }
+}
 
 ==================================================
 INPUT
