@@ -463,22 +463,9 @@ class ContestDetailGenerator:
 
             # Flatten content fields to top level to match existing database schema
             # (existing documents have whyJoin, whoShouldApply, benefits, tips, readingTime at top level)
-            doc = {
-                "contestId": contest_oid,
-                "version": new_version,
-                "schemaVersion": 1,
-                "status": "completed" if has_meaningful_content else "failed",
-                "generatedBy": "mistral-vibe-detail-pipeline",
-                "generatedAt": now,
-                "previousVersionAt": existing.get("generatedAt") if existing else None,
-                "changeLog": (
-                    f"Initial generation (v{new_version})"
-                    if is_new
-                    else f"Regeneration (v{existing['version']} -> v{new_version})"
-                ),
-            }
-            # Merge content fields at top level
-            doc.update(content)
+            # IMPORTANT: build doc AFTER content merge and then re-assert protected fields
+            # so that LLM-generated content cannot overwrite system fields like contestId.
+            doc = dict(content)  # shallow copy of content
             # Add SEO fields at top level
             if seo:
                 doc["seo"] = seo
@@ -488,16 +475,64 @@ class ContestDetailGenerator:
                 "qualityScore": max(0, 100 - len(warnings) * 15),
                 "warnings": warnings if warnings else [],
             }
+            # --- Protected system fields (always overwrite any content bleed-through) ---
+            doc["contestId"] = contest_oid
+            doc["version"] = new_version
+            doc["schemaVersion"] = 1
+            doc["status"] = "completed" if has_meaningful_content else "failed"
+            doc["generatedBy"] = "mistral-vibe-detail-pipeline"
+            doc["generatedAt"] = now
+            doc["previousVersionAt"] = existing.get("generatedAt") if existing else None
+            doc["changeLog"] = (
+                f"Initial generation (v{new_version})"
+                if is_new
+                else f"Regeneration (v{existing['version']} -> v{new_version})"
+            )
 
-            self.details_collection.update_one(
+            write_result = self.details_collection.update_one(
                 {"contestId": contest_oid},
                 {"$set": doc},
                 upsert=True,
             )
 
+            # --- Verify the write actually landed ---
+            if write_result.matched_count == 0 and write_result.upserted_id is None:
+                # update_one with upsert=True should ALWAYS either match or upsert.
+                # If neither happened, the write was silently dropped.
+                logger.error(
+                    f"contest_details write silently dropped for {contest_id}: "
+                    f"matched={write_result.matched_count}, upserted={write_result.upserted_id}"
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"Write was silently dropped (matched=0, upserted=None). "
+                        f"This usually indicates a MongoDB connection issue or "
+                        f"collection-level validation rejection."
+                    ),
+                }
+
+            # --- Post-write verification: read back to confirm persistence ---
+            verify = self.details_collection.find_one({"contestId": contest_oid})
+            if not verify:
+                logger.error(
+                    f"contest_details post-write verification FAILED for {contest_id}: "
+                    f"document not found after successful upsert"
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"Write reported success (matched={write_result.matched_count}, "
+                        f"upserted={write_result.upserted_id}) but document not found "
+                        f"on immediate read-back. Possible replica set / write concern issue."
+                    ),
+                }
+
             logger.info(
                 f"Saved contest_details v{new_version} for contest {contest_id} "
-                f"({'new' if is_new else 'update'})"
+                f"({'new' if is_new else 'update'}, "
+                f"matched={write_result.matched_count}, "
+                f"upserted={write_result.upserted_id})"
             )
 
             return {

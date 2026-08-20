@@ -873,3 +873,120 @@ def submit_contest_details(
         logger.error(f"Error in submit_contest_details: {e}")
         update_metrics(False)
         return {"success": False, "error": str(e)}
+
+
+# ── Diagnostic tool ─────────────────────────────────────────────────────
+
+
+@mcp.tool()
+def diagnose_contest_details_write() -> Dict[str, Any]:
+    """
+    Self-contained diagnostic: writes a test document to contest_details,
+    reads it back, then cleans up. Reports exactly where the write
+    path breaks (if at all).
+
+    Use this when submit_contest_details reports success but
+    read_collection shows zero results for contest_details.
+    """
+    client_id = "diagnose_contest_details_write"
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+        from bson.objectid import ObjectId
+        from config.mongodb import db
+
+        test_id = ObjectId()
+        collection = db["contest_details"]
+        test_doc = {
+            "contestId": test_id,
+            "version": 1,
+            "schemaVersion": 1,
+            "status": "diagnostic_test",
+            "generatedBy": "diagnostic",
+            "generatedAt": datetime.now(timezone.utc),
+            "whyJoin": "Diagnostic test document",
+            "_diagnostic": True,
+        }
+
+        steps = []
+
+        # Step 1: insert_one
+        try:
+            ins = collection.insert_one(test_doc)
+            steps.append({"step": "insert_one", "inserted_id": str(ins.inserted_id)})
+        except Exception as e:
+            steps.append({"step": "insert_one", "error": str(e)})
+            update_metrics(False)
+            return {"success": False, "steps": steps, "error": "insert_one failed"}
+
+        # Step 2: find_one by _id
+        found_by_id = collection.find_one({"_id": ins.inserted_id})
+        steps.append({"step": "find_one_by_id", "found": found_by_id is not None})
+
+        # Step 3: find_one by contestId
+        found_by_cid = collection.find_one({"contestId": test_id})
+        steps.append({"step": "find_one_by_contestId", "found": found_by_cid is not None})
+
+        # Step 4: find({}) — the read_collection path
+        all_docs = list(collection.find({}))
+        steps.append({"step": "find_all", "count": len(all_docs)})
+
+        # Step 5: count_documents
+        cnt = collection.count_documents({})
+        steps.append({"step": "count_documents", "count": cnt})
+
+        # Step 6: update_one with upsert (the save() path)
+        try:
+            upd = collection.update_one(
+                {"contestId": test_id},
+                {"$set": {"version": 2, "_diagnostic": True}},
+                upsert=True,
+            )
+            steps.append({
+                "step": "update_one",
+                "matched": upd.matched_count,
+                "modified": upd.modified_count,
+                "upserted_id": str(upd.upserted_id) if upd.upserted_id else None,
+            })
+        except Exception as e:
+            steps.append({"step": "update_one", "error": str(e)})
+
+        # Step 7: read back after update
+        after_update = collection.find_one({"contestId": test_id})
+        steps.append({
+            "step": "read_after_update",
+            "found": after_update is not None,
+            "version": after_update.get("version") if after_update else None,
+        })
+
+        # Step 8: cleanup
+        collection.delete_one({"_id": ins.inserted_id})
+        steps.append({"step": "cleanup", "deleted": True})
+
+        # Connection info
+        db_info = {
+            "db_name": db.name,
+            "collection": "contest_details",
+            "collection_count": collection.estimated_document_count(),
+        }
+
+        all_ok = all(
+            s.get("found", s.get("count", 0) > 0 or s.get("error") is None)
+            for s in steps
+            if s["step"] not in ("cleanup",)
+        )
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "all_ok": all_ok,
+            "db_info": db_info,
+            "steps": steps,
+        }
+
+    except Exception as e:
+        logger.error(f"Diagnostic failed: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}

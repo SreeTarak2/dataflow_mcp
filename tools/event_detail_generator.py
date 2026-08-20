@@ -439,15 +439,50 @@ class EventDetailGenerator:
                 },
             }
 
-            self.details_collection.update_one(
+            write_result = self.details_collection.update_one(
                 {"eventId": event_oid},
                 {"$set": doc},
                 upsert=True,
             )
 
+            # --- Verify the write actually landed ---
+            if write_result.matched_count == 0 and write_result.upserted_id is None:
+                # update_one with upsert=True should ALWAYS either match or upsert.
+                # If neither happened, the write was silently dropped.
+                logger.error(
+                    f"event_details write silently dropped for {event_id}: "
+                    f"matched={write_result.matched_count}, upserted={write_result.upserted_id}"
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"Write was silently dropped (matched=0, upserted=None). "
+                        f"This usually indicates a MongoDB connection issue or "
+                        f"collection-level validation rejection."
+                    ),
+                }
+
+            # --- Post-write verification: read back to confirm persistence ---
+            verify = self.details_collection.find_one({"eventId": event_oid})
+            if not verify:
+                logger.error(
+                    f"event_details post-write verification FAILED for {event_id}: "
+                    f"document not found after successful upsert"
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"Write reported success (matched={write_result.matched_count}, "
+                        f"upserted={write_result.upserted_id}) but document not found "
+                        f"on immediate read-back. Possible replica set / write concern issue."
+                    ),
+                }
+
             logger.info(
                 f"Saved event_details v{new_version} for event {event_id} "
-                f"({'new' if is_new else 'update'})"
+                f"({'new' if is_new else 'update'}, "
+                f"matched={write_result.matched_count}, "
+                f"upserted={write_result.upserted_id})"
             )
 
             return {
