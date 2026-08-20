@@ -11,6 +11,7 @@ Equivalent ways to run:
     dataflow-mcp          (installed console script)
 """
 
+from dataflow_mcp.core import mcp  # noqa: F401 — exposed for fastmcp inspect
 from dataflow_mcp.server import run
 
 if __name__ == "__main__":
