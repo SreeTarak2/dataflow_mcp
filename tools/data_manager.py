@@ -16,6 +16,29 @@ class DataManager:
     MAX_LIMIT = 1000
 
     @staticmethod
+    def _coerce_objectid_strings(obj: Any) -> Any:
+        """Recursively convert 24-hex-char strings to ObjectId in filter values.
+
+        This bridges the gap between:
+        - ``save()`` which stores ``contestId`` as ``ObjectId``
+        - AI callers which pass ``contestId`` as a JSON string via
+          ``read_collection`` (JSON has no ObjectId type).
+
+        Only converts strings that are exactly 24 hex characters and are
+        not nested inside ``$regex``-style operator dicts.
+        """
+        if isinstance(obj, str) and len(obj) == 24:
+            try:
+                return ObjectId(obj)
+            except Exception:
+                return obj
+        if isinstance(obj, dict):
+            return {k: DataManager._coerce_objectid_strings(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [DataManager._coerce_objectid_strings(item) for item in obj]
+        return obj
+
+    @staticmethod
     def read_data(
         collection_name: str,
         filter_query: Optional[Dict[str, Any]] = None,
@@ -42,6 +65,11 @@ class DataManager:
             # Validate inputs
             collection_name = MongoDBValidator.validate_collection_name(collection_name)
             filter_query = MongoDBValidator.validate_filter(filter_query or {})
+
+            # Auto-convert ObjectId-looking strings so that queries from AI
+            # callers (which pass JSON strings) match documents stored with
+            # native ObjectId values.
+            filter_query = DataManager._coerce_objectid_strings(filter_query)
 
             # Enforce limits
             limit = min(int(limit), DataManager.MAX_LIMIT)
