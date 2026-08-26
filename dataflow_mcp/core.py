@@ -57,7 +57,7 @@ PROMPT_CONTEST_STRUCTURING = "contest-structuring-v4.1.txt"
 PROMPT_CONTEST_DETAILS = "contest-details-v1.0.txt"
 PROMPT_EVENTS = "event-structuring-v1.1.txt"
 PROMPT_EVENT_DETAILS = "event-details-v1.0.txt"
-PROMPT_BACKFILL = "contest-backfill-v3.2.txt"
+PROMPT_BACKFILL = "contest-backfill-v4.0.txt"
 PROMPT_VALIDATION = "validation-v1.0.txt"
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -470,6 +470,48 @@ def _build_normalized_record(
             audience_field["mode"] = audience["mode"]
         if audience_field:
             normalized["audience"] = audience_field
+
+    # location intelligence v4.0 — structured occurrence geography (cards/map source of truth)
+    location = record.get("location")
+    if isinstance(location, dict) and location:
+        loc_field: Dict[str, Any] = {}
+        if location.get("display") is not None:
+            loc_field["display"] = location["display"]
+        if location.get("scope"):
+            loc_field["scope"] = location["scope"]
+        if location.get("countries"):
+            loc_field["countries"] = location["countries"]
+        if location.get("region") is not None:
+            loc_field["region"] = location["region"]
+        if location.get("city") is not None:
+            loc_field["city"] = location["city"]
+        if location.get("venue") is not None:
+            loc_field["venue"] = location["venue"]
+        if location.get("coordinates") is not None:
+            loc_field["coordinates"] = location["coordinates"]
+        if location.get("precision"):
+            loc_field["precision"] = location["precision"]
+        if location.get("mapEligible") is not None:
+            loc_field["mapEligible"] = location["mapEligible"]
+        if loc_field:
+            normalized["location"] = loc_field
+
+    # participationGeography v4.0 — who can participate (separate from where it happens)
+    part_geo = record.get("participationGeography")
+    if isinstance(part_geo, dict) and part_geo:
+        pg_field: Dict[str, Any] = {}
+        if part_geo.get("scope"):
+            pg_field["scope"] = part_geo["scope"]
+        if part_geo.get("allowedCountries"):
+            pg_field["allowedCountries"] = part_geo["allowedCountries"]
+        if part_geo.get("allowedRegions"):
+            pg_field["allowedRegions"] = part_geo["allowedRegions"]
+        if part_geo.get("restrictedCountries"):
+            pg_field["restrictedCountries"] = part_geo["restrictedCountries"]
+        if part_geo.get("eligibilitySummary") is not None:
+            pg_field["eligibilitySummary"] = part_geo["eligibilitySummary"]
+        if pg_field:
+            normalized["participationGeography"] = pg_field
 
     # timeline
     timeline = record.get("timeline")

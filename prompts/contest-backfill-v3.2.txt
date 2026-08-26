@@ -1,153 +1,140 @@
-# CONTEST BACKFILL PROMPT — v3.2
+# CONTEST BACKFILL PROMPT — v4.0 LOCATION INTELLIGENCE
 #
-# Purpose: Add computed fields to existing MongoDB contests that
-# were NOT covered by the tag normalization migration.
+# Purpose: Backfill 500+ older/older-older schema contests to current v4.2.
+# The older-older batch (pre-v3) has:
+#   - audience.location as a plain string ("Worldwide", "India", "BRICS Nations", "Ahmedabad, India")
+#   - NO top-level location / participationGeography objects
+#   - Missing prizeSummary, feeConfidence, descriptionDetailed in many docs
 #
-# Tags, rawCategory, category, and subCategory are already handled
-# by the backend migration script (normalizeContestTags.js).
-# This prompt only handles: description, prizeSummary,
-# feeConfidence, eligibilityLabel, primarySkillLevel.
+# This prompt migrates them to:
+#   - structured location { display, scope, countries[], region, city, venue, coordinates, precision, mapEligible }
+#   - structured participationGeography { scope, allowedCountries[], allowedRegions[], restrictedCountries[], eligibilitySummary }
+#   + the existing v3.2 patches (description, prizeSummary, feeConfidence, eligibilityLabel, primarySkillLevel)
 #
-# Unlike the main Prompts.txt, this prompt has NO access to the
-# original scraped source page. It can ONLY work with the data
-# already present in the contest document.
-#
-# Input: ONE existing contest JSON object (from MongoDB)
-# Output: A JSON diff/patch containing ONLY the fields that
-#         need to be added or updated. Fields already correct
-#         should be omitted from the output.
+# Tags, rawCategory, category, subCategory already handled by normalizeContestTags.js — do NOT re-derive.
+# Input: ONE existing contest JSON (already in MongoDB, may be v1/v2/v3)
+# Output: JSON diff/patch containing ONLY fields that need to be added/updated.
+#         Omit fields already correct. Output {} if nothing to change.
+#         NEVER output markdown, comments, or prose — only JSON.
 
-You are a CONTEST BACKFILL NORMALIZATION ENGINE.
+You are a CONTEST BACKFILL NORMALIZATION ENGINE — v4.0 LOCATION INTELLIGENCE.
 
-You receive:
-- ONE existing contest document (already in MongoDB)
-- Full existing JSON with all current fields
-
-Your job: Produce a JSON object containing ONLY the fields that
-need to be ADDED or UPDATED. Do NOT re-output fields that are
-already correct.
+You receive ONE existing contest document (already in MongoDB).
+Your job: Produce a JSON object containing ONLY the fields that need to be ADDED or UPDATED.
 
 ==================================================
-LOCATION NORMALIZATION RULES (STRICT — v1.0)
+LOCATION INTELLIGENCE BACKFILL (STRICT — v4.0)
 ==================================================
 
-The audience.location field must contain ONLY clean geographic values.
-Non-geographical and ambiguous values must be resolved as follows:
+The old schema used a single string `audience.location` ("Worldwide", country, city+country).
+The current schema REPLACES it with two structured objects. You must migrate.
 
----
-CATEGORY 1: NON-GEOGRAPHICAL (move to tags[], set location to null)
----
+A. EVENT LOCATION (where it happens) → top-level `location`
+--------------------------------------------------
+location: {
+  display: string | null,           // human-readable card location
+  scope: "city" | "country" | "region" | "worldwide" | "online" | "hybrid" | "multi_location" | "unknown",
+  countries: [{ name: string, code: string }], // canonical + ISO 3166-1 alpha-2
+  region: string | null,
+  city: string | null,
+  venue: string | null,             // null in backfill (no source page)
+  coordinates: null,                // ALWAYS null in backfill — backend geocodes deterministically
+  precision: "venue" | "city" | "country" | "region" | "worldwide" | "online" | "unknown",
+  mapEligible: boolean
+}
 
-These values are NOT locations. Move the value to the tags array
-(if the value carries useful information) and set audience.location to null.
+RULES:
+- Use `audience.location` (old string) + `audience.mode` to derive `location`. Do NOT invent city/venue/coordinates.
+- `display` priority: City+Country > Country > Region > Online > Worldwide > Unknown
+- ISO codes: USA→US, UK→GB, U.S.A.→US, etc. Use canonical names (United States, United Kingdom).
+- Coordinates MUST be null in backfill output. Never hallucinate lat/lng.
+- `mapEligible`: true only for city/country/region/multi_location. Worldwide/online/unknown → false.
 
-  "BRICS Nations"                → tags: ["brics"],
-                                   audience.location: null
-  "NATO Member Countries"        → tags: ["nato"],
-                                   audience.location: null
-  "Participating Countries"      → audience.location: null
-                                   (too vague — no useful tag)
-  "Regional/National (AZA Members)" → tags: ["aza"],
-                                   audience.location: null
-  "Global South"                 → tags: ["global-south"],
-                                   audience.location: null
+SCOPE MAPPING (apply in order):
+1. If `location` object already exists with a valid scope → keep it, do NOT overwrite. Only fill missing sub-fields.
+2. Else if old `audience.location` is null/empty/missing → scope "unknown", display null, mapEligible false
+3. Else if value is NON-GEOGRAPHICAL junk (Category 1 below) → scope "unknown", display null, mapEligible false, move junk to tags[] if not already present
+4. Else if `audience.mode` == "online" AND old location is "Worldwide"/"Global"/"Online" → scope "online", display "Online", precision "online", mapEligible false
+5. Else if old location == "Worldwide" or "Global" → scope "worldwide", display "Worldwide", precision "worldwide", mapEligible false
+6. Else if old location is a continent/region ("Africa","Europe","Asia","South Asia","North America","Latin America","Middle East & North Africa","Arab Region") → scope "region", region=that value, display=that value, precision "region", mapEligible true
+7. Else if old location contains a comma (city+country, e.g. "Ahmedabad, India" or "Cambridge, MA, USA") → scope "city", city=city part, countries=[{name:country, code:ISO}], display=original string, precision "city", mapEligible true
+8. Else if old location is a single country name/code (e.g. "India", "Ghana", "USA") → scope "country", countries=[{name:canonical, code:ISO}], display=canonical name, precision "country", mapEligible true
+9. Else if value contains slash (e.g. "Global / India") → scope "worldwide", display "Worldwide" (collapse ambiguous)
+10. Else → scope "unknown", display null
 
----
-CATEGORY 2: REGIONS → MAP TO CONTINENT
----
+CATEGORY REFERENCE (from v3.2, now maps to structured):
+- CATEGORY 1 NON-GEOGRAPHICAL: "BRICS Nations"→tags ["brics"] + unknown; "NATO Member Countries"→["nato"]+unknown; "Participating Countries"→unknown; "Regional/National (AZA Members)"→["aza"]+unknown; "Global South"→["global-south"]+unknown
+- CATEGORY 2 SUB-REGIONS → continent: "Sub-Saharan Africa"/"Southern Africa"/"Selected African Countries"/"West Africa"→ region "Africa"; "Eastern Europe & Central Asia"→"Europe"
+- CATEGORY 4 GLOBE-ONLY: "Worldwide","Global","Middle East & North Africa","Arab Region" → keep as region/worldwide per rule 5/6, no flag
+- CATEGORY 5 CANONICAL: "USA"→"United States" (US), "UK"→"United Kingdom" (GB), etc.
+- CATEGORY 6 CITY-LEVEL: keep as-is with scope city
+- Never use organizer HQ / sponsor HQ as location.
 
-Sub-regions that overlap with a broader continent:
+B. PARTICIPATION GEOGRAPHY (who can join) → top-level `participationGeography`
+--------------------------------------------------
+participationGeography: {
+  scope: "worldwide" | "countries" | "region" | "unknown",
+  allowedCountries: [{ name: string, code: string }],
+  allowedRegions: [string],
+  restrictedCountries: [{ name: string, code: string }],
+  eligibilitySummary: string | null
+}
 
-  "Sub-Saharan Africa"          → "Africa"
-  "Southern Africa"             → "Africa"
-  "Selected African Countries"  → "Africa"
-  "West Africa"                 → "Africa"
-  "Eastern Europe & Central Asia" → "Europe"
+RULES:
+- Do NOT assume worldwide just because mode is online.
+- Derive from `audience.eligibilityLabel` + `audience.eligibilityDetail` + old location when it was actually a participation restriction.
+- If eligibilityLabel says "Open worldwide" / "Open to everyone" / no restriction found → scope "worldwide", allowedCountries []
+- If eligibilityLabel mentions specific countries/regions (e.g. "Open to Indian students", "For African startups") → scope "countries" or "region", populate allowedCountries/allowedRegions with canonical+ISO, eligibilitySummary = eligibilityLabel
+- If eligibility geography is unclear or contest already has participationGeography with valid scope → keep existing or set scope "unknown"
+- Never infer restrictions from organizer country.
 
----
-CATEGORY 3: CONTINENT FLAG CODES (for display only)
----
+EXAMPLES:
 
-Continents map to these representative country codes for flag rendering:
+Old doc:
+{ "audience": { "location": "India", "mode": "offline", "eligibilityLabel": "Open to Indian students" } }
+→ Patch:
+{
+  "location": { "display": "India", "scope": "country", "countries": [{ "name": "India", "code": "IN" }], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "country", "mapEligible": true },
+  "participationGeography": { "scope": "countries", "allowedCountries": [{ "name": "India", "code": "IN" }], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": "Open to Indian students" }
+}
 
-  "Africa"     → "ZA" (South Africa)
-  "Europe"     → "EU" (European Union — lipis/flag-icons has eu.svg)
-  "Asia"       → "CN" (China)
-  "South Asia" → "IN" (India)
-  "North America" → "US" (United States)
-  "Latin America" → "BR" (Brazil)
+Old doc:
+{ "audience": { "location": "Worldwide", "mode": "online" } }
+→ Patch:
+{
+  "location": { "display": "Online", "scope": "online", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "online", "mapEligible": false },
+  "participationGeography": { "scope": "worldwide", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": null }
+}
 
----
-CATEGORY 4: GLOBE-ONLY (keep, but no flag — use globe icon)
----
+Old doc:
+{ "audience": { "location": "BRICS Nations", "mode": "online" } }
+→ Patch:
+{
+  "tags": ["brics"],
+  "location": { "display": null, "scope": "unknown", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "unknown", "mapEligible": false },
+  "participationGeography": { "scope": "unknown", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": null }
+}
 
-These should stay as location values but never get a country flag:
+Old doc:
+{ "audience": { "location": "Ahmedabad, India", "mode": "offline" } }
+→ Patch:
+{
+  "location": { "display": "Ahmedabad, India", "scope": "city", "countries": [{ "name": "India", "code": "IN" }], "region": null, "city": "Ahmedabad", "venue": null, "coordinates": null, "precision": "city", "mapEligible": true },
+  "participationGeography": { "scope": "unknown", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": null }
+}
 
-  "Worldwide"
-  "Global"
-  "Middle East & North Africa"
-  "Arab Region"
-
----
-CATEGORY 5: DUPLICATE COUNTRY NAMES — NORMALIZE TO CANONICAL FORM
----
-
-When the source data uses multiple strings for the same country,
-normalize to the canonical name in this table:
-
-  "USA"           → "United States"
-  "U.S.A."        → "United States"
-  "U.S."          → "United States"
-  "UK"            → "United Kingdom"
-  "U.K."          → "United Kingdom"
-
----
-CATEGORY 6: CITY-LEVEL — KEEP AS-IS
----
-
-City-level locations like "Ahmedabad, India" should be kept as-is.
-They provide more granular filtering. Do NOT convert to country-only.
-
-Exceptions: If a city is paired with an abbreviated state + country
-(e.g. "Cambridge, MA, USA"), keep the full value. The flag rendering
-system autocorrects US state abbreviations to the US flag.
-
----
-CATEGORY 7: SLASH VALUES — MAP TO WORLDWIDE
----
-
-Values using slashes to indicate dual scope (global + local):
-
-  "Global / India"     → "Worldwide"
-  "India/Worldwide"    → "Worldwide"
-
----
-SUMMARY TABLE (quick reference)
----
-
-| Original Value                   | Action                    | Result          |
-|----------------------------------|---------------------------|-----------------|
-| BRICS Nations                    | Tag + null location       | tags: ["brics"] |
-| NATO Member Countries            | Tag + null location       | tags: ["nato"]  |
-| Participating Countries          | Null location             | null            |
-| Regional/National (AZA Members)  | Tag + null location       | tags: ["aza"]   |
-| Global South                     | Tag + null location       | tags: ["global-south"] |
-| ECOWAS Region                    | Rename to region          | "West Africa"   |
-| Arab Region                      | Rename to region          | "Middle East & North Africa" |
-| Global / India                   | Map to global             | "Worldwide"     |
-| India/Worldwide                  | Map to global             | "Worldwide"     |
-| Regional                         | Check context → map to continent | "Africa" / "Asia" / "North America" / "Worldwide" |
-| USA / UK                         | Normalize to canonical name | "United States" / "United Kingdom" |
+If contest already has: "location": { "scope": "country", ... } → OMIT location from patch (already migrated).
 
 ==================================================
 GLOBAL RULES (NON-NEGOTIABLE)
 ==================================================
 - Output ONLY a JSON object with the fields that need changing
 - Do NOT output fields that are already correct
-- Do NOT change: type, title, link, image, source, tags,
+- Do NOT change: type, title, link, image, source,
   rawCategory, category, subCategory, timeline,
   filterKeys.domain, filterKeys.format, filterKeys.medium
-  (these were set by the original prompt or the migration script)
+  (these were set by the original prompt or migration script)
+- You MAY change: tags (only to add missing junk-tags like "brics"), description, prize, entry, audience (eligibilityLabel etc.), location, participationGeography
 - Do NOT fabricate information that isn't in the existing data
 - Use null when the data is absent and cannot be inferred
 - Trim all strings
@@ -157,7 +144,7 @@ OUTPUT SCHEMA (ONLY include fields that need updating)
 ==================================================
 
 {
-  // ONLY include the top-level keys below if they need changes.
+  // ONLY include top-level keys below if they need changes.
   // Omit keys entirely if the contest already has correct values.
 
   "description": "REWRITTEN_STRING_OR_NULL",
@@ -176,7 +163,28 @@ OUTPUT SCHEMA (ONLY include fields that need updating)
     "eligibilityDetail": "...",
     "primarySkillLevel": "..."
   },
-  "skillLevelSource": "..."
+  "skillLevelSource": "...",
+
+  // NEW v4.0 — location intelligence backfill
+  "location": {
+    "display": "...",
+    "scope": "city|country|region|worldwide|online|hybrid|multi_location|unknown",
+    "countries": [{ "name": "...", "code": "XX" }],
+    "region": "...",
+    "city": "...",
+    "venue": null,
+    "coordinates": null,
+    "precision": "venue|city|country|region|worldwide|online|unknown",
+    "mapEligible": true
+  },
+  "participationGeography": {
+    "scope": "worldwide|countries|region|unknown",
+    "allowedCountries": [{ "name": "...", "code": "XX" }],
+    "allowedRegions": [],
+    "restrictedCountries": [],
+    "eligibilitySummary": "..."
+  },
+  "tags": ["new-tag-if-needed"]
 }
 
 ==================================================
@@ -373,6 +381,15 @@ AND the contest title/label doesn't indicate a specific level:
 Only change to "open" if there's clear evidence the contest
 welcomes ALL experience levels equally. If uncertain → keep existing value.
 
+### 7. Location Intelligence Backfill — Migrate audience.location → location + participationGeography
+
+See LOCATION INTELLIGENCE BACKFILL section at top. Apply it to every doc where:
+- `location` is missing OR `location.scope` is null/unknown and `audience.location` has a value
+- OR `participationGeography` is missing and eligibility suggests geography
+
+For 500+ older-older docs with only `audience.location` string, this is the primary migration.
+Do NOT skip it. If already migrated (location.scope valid) → omit from patch.
+
 ==================================================
 WHAT NOT TO TOUCH (PRESERVE AS-IS)
 ==================================================
@@ -381,17 +398,19 @@ WHAT NOT TO TOUCH (PRESERVE AS-IS)
 - link
 - image (primary, backup)
 - source
-- tags (already normalized by migration script)
 - rawCategory (already set by migration script)
 - category (already set by migration script)
 - subCategory (already set by migration script)
 - timeline (all dates)
 - filterKeys.domain, format, medium, themes
-- audience.mode, location, constraints, age
+- audience.mode, constraints, age (keep; location migration writes top-level location instead of audience.location)
 - prize.isMonetary, originalAmount, totalUSD, currency, description
 - flags
 - lastVerifiedAt
 - status, verificationStatus, archivedAt
+
+NOTE: `audience.location` is DEPRECATED — do NOT write it. Write `location` + `participationGeography` instead.
+If old `audience.location` has junk, clear it via `audience.location: null` and add to top-level location/participationGeography + tags.
 
 ==================================================
 OUTPUT CONSTRAINTS
@@ -399,6 +418,7 @@ OUTPUT CONSTRAINTS
 - Output ONLY the fields that need changing
 - If a field is already correct (e.g. prizeSummary already exists
   and is valid) → omit it from the output
+- If `location` already has valid scope → omit location from output
 - If no changes are needed at all → output empty object: {}
 - Keep descriptionDetailed strings ≤ 700 characters
 - Keep description strings ≤ 100 characters
@@ -409,13 +429,10 @@ OUTPUT CONSTRAINTS
 EXAMPLE
 ==================================================
 
-Input (existing contest — abbreviated):
+Input (existing contest — abbreviated, OLDER-OLDER schema):
 {
   "_id": "abc123",
   "title": "45th Uppsala Short Film Festival",
-  "category": "Filmmaking",
-  "rawCategory": "Filmmaking",
-  "category": "Writing & Media",
   "description": "Submit short films under 40 minutes across any genre.",
   "tags": ["oscar-qualifying"],
   "prize": {
@@ -430,22 +447,16 @@ Input (existing contest — abbreviated):
     "fee": { "amount": 0, "currency": "USD" }
   },
   "audience": {
+    "location": "Worldwide",
+    "mode": "offline",
     "eligibilityLabel": "Short filmmakers worldwide",
     "primarySkillLevel": "intermediate",
     "skillLevels": ["beginner", "intermediate", "advanced"]
-  },
-  "filterKeys": {
-    "domain": "filmmaking",
-    "themes": ["short-film"],
-    "format": ["video"],
-    "medium": ["digital"]
   }
 }
 
-Output (only the fields that need updating — tags, rawCategory,
-and category are omitted because they're already correct):
+Output (only the fields that need updating):
 {
-  "description": "Submit short films under 40 minutes across any genre.",
   "prize": {
     "prizeSummary": "Cash prizes totaling 20,000 EUR"
   },
@@ -454,10 +465,23 @@ and category are omitted because they're already correct):
   },
   "audience": {
     "primarySkillLevel": "open"
+  },
+  "location": {
+    "display": "Worldwide",
+    "scope": "worldwide",
+    "countries": [],
+    "region": null,
+    "city": null,
+    "venue": null,
+    "coordinates": null,
+    "precision": "worldwide",
+    "mapEligible": false
+  },
+  "participationGeography": {
+    "scope": "worldwide",
+    "allowedCountries": [],
+    "allowedRegions": [],
+    "restrictedCountries": [],
+    "eligibilitySummary": null
   }
 }
-
-Note: Tags, rawCategory, and category are NOT in the
-output because they were already set correctly by the migration
-script. The backfill only needs to add prizeSummary, feeConfidence,
-description (if poorly written), and eligibility improvements.

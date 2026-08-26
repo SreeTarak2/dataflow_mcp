@@ -49,7 +49,7 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     # Description fields
     "description",
     "descriptionDetailed",
-    # Audience fields
+    # Audience fields (audience.location is DEPRECATED — kept for backward compat clear)
     "audience.eligibilityLabel",
     "audience.eligibilityDetail",
     "audience.primarySkillLevel",
@@ -58,11 +58,30 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     "audience.mode",
     "audience.age.min",
     "audience.age.max",
+    # Location Intelligence v4.0 — 500+ older/older-older docs missing these
+    "location",
+    "location.display",
+    "location.scope",
+    "location.countries",
+    "location.region",
+    "location.city",
+    "location.venue",
+    "location.coordinates",
+    "location.coordinates.latitude",
+    "location.coordinates.longitude",
+    "location.precision",
+    "location.mapEligible",
+    "participationGeography",
+    "participationGeography.scope",
+    "participationGeography.allowedCountries",
+    "participationGeography.allowedRegions",
+    "participationGeography.restrictedCountries",
+    "participationGeography.eligibilitySummary",
     # Category fields
     "category",
     "subCategory",
     "rawCategory",
-    # Tags
+    # Tags (used for junk location → tag migration like BRICS → brics)
     "tags",
     # Timeline
     "timeline.submissionDeadlineUTC",
@@ -113,6 +132,34 @@ VALID_MODES: Set[str] = {
     "offline",
     "in-person",
     "hybrid",
+}
+
+VALID_LOCATION_SCOPES: Set[str] = {
+    "city",
+    "country",
+    "region",
+    "worldwide",
+    "online",
+    "hybrid",
+    "multi_location",
+    "unknown",
+}
+
+VALID_LOCATION_PRECISIONS: Set[str] = {
+    "venue",
+    "city",
+    "country",
+    "region",
+    "worldwide",
+    "online",
+    "unknown",
+}
+
+VALID_PARTICIPATION_SCOPES: Set[str] = {
+    "worldwide",
+    "countries",
+    "region",
+    "unknown",
 }
 
 VALID_TYPES: Set[str] = {
@@ -358,7 +405,7 @@ class PatchValidator:
             "descriptionDetailed": lambda v: PatchValidator._check_string(
                 v, "descriptionDetailed", max_len=2000
             ),
-            # Audience
+            # Audience (location is deprecated string — still validated for clear-to-null)
             "audience.eligibilityLabel": lambda v: PatchValidator._check_string(
                 v, "audience.eligibilityLabel", max_len=150
             ),
@@ -375,6 +422,55 @@ class PatchValidator:
                 v, "audience.location", max_len=100
             ),
             "audience.mode": lambda v: PatchValidator._check_enum(v, VALID_MODES, "audience.mode"),
+            # Location Intelligence v4.0
+            "location.display": lambda v: PatchValidator._check_string(
+                v, "location.display", max_len=200
+            ),
+            "location.scope": lambda v: PatchValidator._check_enum(
+                v, VALID_LOCATION_SCOPES, "location.scope"
+            ),
+            "location.countries": lambda v: PatchValidator._check_list(v, "location.countries"),
+            "location.region": lambda v: PatchValidator._check_string(
+                v, "location.region", max_len=100
+            ),
+            "location.city": lambda v: PatchValidator._check_string(
+                v, "location.city", max_len=100
+            ),
+            "location.venue": lambda v: PatchValidator._check_string(
+                v, "location.venue", max_len=200
+            ),
+            "location.coordinates": lambda v: (
+                None
+                if v is None
+                else PatchValidator._check_list(v, "location.coordinates")
+                if isinstance(v, list)
+                else None
+            ),
+            "location.precision": lambda v: PatchValidator._check_enum(
+                v, VALID_LOCATION_PRECISIONS, "location.precision"
+            ),
+            "location.mapEligible": lambda v: PatchValidator._check_bool(v, "location.mapEligible"),
+            "location.coordinates.latitude": lambda v: PatchValidator._check_number(
+                v, "location.coordinates.latitude"
+            ),
+            "location.coordinates.longitude": lambda v: PatchValidator._check_number(
+                v, "location.coordinates.longitude"
+            ),
+            "participationGeography.scope": lambda v: PatchValidator._check_enum(
+                v, VALID_PARTICIPATION_SCOPES, "participationGeography.scope"
+            ),
+            "participationGeography.allowedCountries": lambda v: PatchValidator._check_list(
+                v, "participationGeography.allowedCountries"
+            ),
+            "participationGeography.allowedRegions": lambda v: PatchValidator._check_list(
+                v, "participationGeography.allowedRegions"
+            ),
+            "participationGeography.restrictedCountries": lambda v: PatchValidator._check_list(
+                v, "participationGeography.restrictedCountries"
+            ),
+            "participationGeography.eligibilitySummary": lambda v: PatchValidator._check_string(
+                v, "participationGeography.eligibilitySummary", max_len=300
+            ),
             # Category
             "category": lambda v: PatchValidator._check_enum(v, CANONICAL_CATEGORIES, "category"),
             "subCategory": lambda v: PatchValidator._check_string(v, "subCategory", max_len=100),
@@ -630,13 +726,18 @@ class ContestMigration:
             # Build filter - prioritize contests missing backfill fields
             # Note: category field is handled by Node.js normalizeContestTags.js,
             # not the MCP backfill. MCP handles: prizeSummary, feeConfidence,
-            # descriptionDetailed, eligibilityLabel, etc.
+            # descriptionDetailed, eligibilityLabel, location intelligence, etc.
+            # v4.0: 500+ older/older-older docs lack location/participationGeography
             filter_dict = filter_query or {}
             default_filter = {
                 "$or": [
                     {"prizeSummary": {"$exists": False}},
                     {"feeConfidence": {"$exists": False}},
                     {"subCategory": {"$exists": False}},
+                    {"location": {"$exists": False}},
+                    {"location.scope": {"$exists": False}},
+                    {"participationGeography": {"$exists": False}},
+                    {"audience.location": {"$exists": True, "$type": "string"}},
                 ]
             }
 
@@ -708,6 +809,17 @@ class ContestMigration:
 
             missing_sub_category = collection.count_documents({"subCategory": {"$exists": False}})
 
+            # v4.0 location intelligence — 500+ older docs missing these
+            missing_location = collection.count_documents(
+                {"$or": [{"location": {"$exists": False}}, {"location.scope": {"$exists": False}}]}
+            )
+            missing_participation_geo = collection.count_documents(
+                {"participationGeography": {"$exists": False}}
+            )
+            legacy_audience_location = collection.count_documents(
+                {"audience.location": {"$exists": True, "$type": "string"}}
+            )
+
             logger.info(
                 f"Migration status: {migrated}/{total_contests} migrated "
                 f"({100 * migrated / total_contests:.1f}%)"
@@ -722,6 +834,10 @@ class ContestMigration:
                 "breakdown": {
                     "missing_prize_summary": missing_prize_summary,
                     "missing_fee_confidence": missing_fee_confidence,
+                    "missing_sub_category": missing_sub_category,
+                    "missing_location": missing_location,
+                    "missing_participationGeography": missing_participation_geo,
+                    "legacy_audience_location_string": legacy_audience_location,
                 },
             }
 
@@ -777,6 +893,8 @@ class ContestMigration:
                     "prize": 1,
                     "entry": 1,
                     "audience": 1,
+                    "location": 1,
+                    "participationGeography": 1,
                     "description": 1,
                     "descriptionDetailed": 1,
                     "category": 1,
@@ -893,6 +1011,17 @@ class ContestMigration:
                 contest_id = migration.get("contest_id")
                 patch = migration.get("patch", {})
                 item_force = migration.get("force", force)
+
+                if not contest_id or not isinstance(contest_id, str):
+                    results["details"].append(
+                        {
+                            "contest_id": contest_id,
+                            "status": "failed",
+                            "error": "Missing or invalid contest_id",
+                        }
+                    )
+                    results["failed"] += 1
+                    continue
 
                 result = ContestMigration.apply_migration_patch(contest_id, patch, force=item_force)
 
