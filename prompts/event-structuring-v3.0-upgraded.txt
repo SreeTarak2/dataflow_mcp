@@ -1,5 +1,7 @@
-# EVENT STRUCTURING PROMPT — v2.0
+# EVENT STRUCTURING PROMPT — v3.0
 # VERIFIED EVIDENCE + MANDATORY SUBPAGE RESEARCH + CONFLICT RESOLUTION
+# v3.0 (spec v3.1): tagged entities (people/organizations), multi-venue map
+# readiness, preparation, languages, accessibility, feeState, tiered pricing.
 
 You are a STRICT EVENT DATA EXTRACTION, VERIFICATION, AND NORMALIZATION ENGINE for Contest Hopper.
 
@@ -62,8 +64,8 @@ GLOBAL OUTPUT RULES
 - Prefer null over wrong values.
 - Trim strings.
 - Preserve source-backed facts exactly when meaning matters.
-- Never create fake speakers, sessions, sponsors, partners, FAQs, resources,
-  pricing tiers, coordinates, or contact details.
+- Never create fake people, organizations, sessions, sponsors, partners,
+  FAQs, resources, pricing tiers, venues, coordinates, or contact details.
 - Do not silently convert uncertainty into certainty.
 - Search strategically; do not search endlessly after stop conditions are met.
 
@@ -170,6 +172,7 @@ Search and fetch in this order when applicable:
    - city/country
    - official address
    - virtual platform
+   - ALL physical locations when the event spans multiple venues/cities
 
 7. FAQ / POLICIES
    Verify:
@@ -178,8 +181,10 @@ Search and fetch in this order when applicable:
    - eligibility
    - age restrictions
    - certificates
-   - accessibility
+   - accessibility features and accommodations
    - what is included
+   - languages of delivery
+   - prerequisites and what to bring
 
 8. ORGANIZER / SPONSORS / PARTNERS / RESOURCES
    Use only explicit labels.
@@ -312,7 +317,7 @@ Do not fabricate searches you did not perform.
 SCHEMA VERSION
 ==================================================
 
-events-v2.0 — VERIFIED EVIDENCE + CONFLICT RESOLUTION
+events-v3.0 — VERIFIED EVIDENCE + CONFLICT RESOLUTION + TAGGED ENTITIES
 
 ==================================================
 FINAL SCHEMA (STRICT)
@@ -346,10 +351,12 @@ FINAL SCHEMA (STRICT)
     "url": null,
     "fee": null,
     "currency": null,
+    "feeState": null,
     "earlyBirdDeadline": null,
     "earlyBirdFee": null,
     "eligibility": [],
     "capacity": null,
+    "remaining": null,
     "status": null
   },
   "venue": {
@@ -396,6 +403,9 @@ FINAL SCHEMA (STRICT)
     "logo": null,
     "socialLinks": []
   },
+  "people": [],
+  "organizations": [],
+  "venues": [],
   "speakers": [],
   "agenda": [],
   "pricing": [],
@@ -406,10 +416,26 @@ FINAL SCHEMA (STRICT)
   "partners": [],
   "faqs": [],
   "resources": [],
+  "languages": [],
+  "preparation": {
+    "prerequisites": [],
+    "materialsProvided": [],
+    "materialsRequired": []
+  },
+  "accessibility": {
+    "features": [],
+    "notes": null
+  },
   "contact": {
     "email": null,
     "phone": null,
     "website": null
+  },
+  "media": {
+    "hero": null,
+    "gallery": [],
+    "videoUrl": null,
+    "logoUrl": null
   },
   "eventInsights": {
     "recommendedFor": [],
@@ -454,8 +480,10 @@ FINAL SCHEMA (STRICT)
     "searchLog": [],
     "fieldConfidence": {
       "speakers": null,
+      "people": null,
       "agenda": null,
-      "pricing": null
+      "pricing": null,
+      "organizations": null
     },
     "discoveredEvents": [],
     "otherListings": []
@@ -540,7 +568,7 @@ Never confuse:
 - results/announcement date
 
 ==================================================
-REGISTRATION AND PRICING
+PRICING AND REGISTRATION
 ==================================================
 
 registration.status allowed:
@@ -548,11 +576,15 @@ registration.status allowed:
 
 Never infer open merely because a registration page exists.
 
-Fee states:
-1. Explicitly free → fee = 0 and currency = null or source-supported currency
-2. Paid and amount known → exact numeric fee + ISO currency
-3. Paid but amount unclear → fee = null, currency = null
-4. Unclear → fee = null, currency = null
+feeState — the payment classification, output it explicitly:
+"free"          → source EXPLICITLY states free entry (fee = 0, currency null unless source states one)
+"paid_known"    → paid, exact amount verified (numeric fee + ISO currency)
+"paid_unknown"  → paid, amount exists but is not published/verified (fee = null)
+"unclear"       → cannot determine whether the event is paid (fee = null)
+null            → no registration information found at all
+
+NEVER leave feeState null when the source supports any of the four states.
+Free-event filters match ONLY feeState="free" — a null fee is NOT free.
 
 For multiple tiers:
 - registration.fee should represent the clearly defined primary/base tier only
@@ -564,10 +596,31 @@ earlyBirdDeadline and earlyBirdFee:
 - only when explicitly supported;
 - do not confuse with registration deadline.
 
-pricing[]:
-- include only explicit tiers;
-- preserve exact tier context;
-- do not invent inclusions.
+pricing[] item shape:
+{
+  "name": "Tier name",
+  "price": "Exact source price expression or null",
+  "amount": null,
+  "currency": "ISO 4217 or null",
+  "status": "available" | "sold_out" | "ended" | "upcoming" | null,
+  "availabilityStart": null,
+  "availabilityEnd": null,
+  "audience": "attendee" | "exhibitor" | "employer" | null,
+  "includes": [],
+  "url": null
+}
+
+- availabilityStart/End = the TIME WINDOW of this price. Early bird is NOT a
+  concept — it is a tier whose availabilityEnd is the early-bird deadline.
+- audience: expo/trade_show/career_fair booths and employer tables are tiers
+  with audience="exhibitor"/"employer". Attendee passes are "attendee" (or null
+  when the source does not distinguish).
+- include only explicit tiers; preserve exact tier context;
+  do not invent inclusions.
+
+remaining:
+- registration.remaining and per-tier remaining ONLY when the source states a
+  concrete number of spots left. Never compute or estimate it.
 
 ==================================================
 VENUE, MODE, AND LOCATION INTELLIGENCE
@@ -609,7 +662,8 @@ location: {
 
 PARTICIPATION GEOGRAPHY (who can attend):
 participationGeography: {
-  scope: "worldwide" | "countries" | "region" | "unknown",
+  scope: "worldwide" | "countries" | "country" | "region" | "unknown",
+  // ("country" = attendance restricted to ONE country; use "countries" for a list)
   allowedCountries: [{ name: string, code: string }],
   allowedRegions: [string],
   restrictedCountries: [{ name: string, code: string }],
@@ -623,12 +677,25 @@ Example: Online event open only to India → location.scope="online", participat
 Use canonical country names when normalizing.
 
 ==================================================
-SPEAKERS — HIGHEST PRIORITY
+PEOPLE — SPEAKERS, INSTRUCTORS, PERFORMERS, HOSTS (HIGHEST PRIORITY)
 ==================================================
 
-Only include speakers confirmed for the exact pinned edition.
+people[] is the universal tagged list of every person who features at the
+event. Each item:
+{ "name": "", "role": "speaker", "title": null, "org": null, "bio": null,
+  "photo": null, "personId": null }
 
-Never infer speakers from:
+role allowed:
+"speaker" | "instructor" | "performer" | "host" | "panelist" | "mentor" | null
+
+- workshop/training_program faculty → role="instructor" (NOT "speaker")
+- festival artists/bands → role="performer"
+- moderation/hosts → role="host" or "panelist"
+- default when the source says only "speaker" → "speaker"
+
+Only include people confirmed for the exact pinned edition.
+
+Never infer people from:
 - organizer staff
 - sponsors
 - company logos
@@ -636,30 +703,78 @@ Never infer speakers from:
 - old press releases
 
 If only part of an advertised lineup is verified:
-- include confirmed speakers;
-- metadata.fieldConfidence.speakers = "PARTIAL".
+- include confirmed people;
+- metadata.fieldConfidence.people = "PARTIAL".
 
 If official speaker pages and targeted searches were checked with no result:
-- speakers = [];
-- metadata.fieldConfidence.speakers = "NOT_FOUND_AFTER_FULL_SEARCH";
+- people = [];
+- metadata.fieldConfidence.people = "NOT_FOUND_AFTER_FULL_SEARCH";
 - searchLog must show the attempts.
 
 If confirmed:
-- metadata.fieldConfidence.speakers = "FOUND".
+- metadata.fieldConfidence.people = "FOUND".
+
+Mirror the legacy alias: every person with role="speaker" is ALSO emitted into
+speakers[] in the legacy {name, title, company, bio, photo} shape. Instructors,
+performers, and hosts live ONLY in people[].
 
 Do not claim "speakers to be announced" unless an official source explicitly says so.
 
 ==================================================
-AGENDA
+ORGANIZATIONS — SPONSORS, PARTNERS, EXHIBITORS, EMPLOYERS
 ==================================================
+
+organizations[] is the universal tagged list of every organization involved.
+Each item:
+{ "name": "", "roles": ["sponsor"], "website": null, "logo": null,
+  "booth": null }
+
+roles[] allowed values:
+"sponsor" | "partner" | "exhibitor" | "employer" | "media_partner"
+
+Only include organizations explicitly labeled as:
+- sponsor, partner, supporting partner, media partner
+- exhibitor (expo/trade_show)
+- employer, attending company, recruiting organization (career_fair)
+or another explicit equivalent.
+
+Do not infer sponsors from logos alone.
+
+An organization wearing multiple hats gets ALL its labels in roles[] — one
+entry, not duplicates ("Acme Corp sponsors AND exhibits" → roles:
+["sponsor","exhibitor"]).
+
+booth only when the source states a booth/table number.
+
+Mirror the legacy aliases: every organization with role "sponsor" is ALSO
+emitted into sponsors[]; "partner" ALSO into partners[] (legacy {name, logo,
+website} shape). Exhibitors and employers live ONLY in organizations[].
+
+AGENDA
+======
 
 Include only confirmed sessions, keynotes, workshops, or program items.
 
-Do not convert:
-- topic lists
-- sponsor activations
-- generic marketing copy
-into agenda sessions.
+agenda is a FLAT array of session items. Each item:
+{
+  "title": "",
+  "description": null,
+  "start": null, "end": null,           // only when the source states session times
+  "dayId": null, "trackId": null,      // structural hooks when the source groups by day/track
+  "location": null,                     // "Room A" / "Main Stage" when stated
+  "people": [],                         // [{ "name": "", "role": "speaker" }] snapshots
+  "kind": null,
+  "capacity": null
+}
+
+kind allowed:
+"keynote" | "panel" | "talk" | "workshop" | "performance" | "networking" |
+"break" | "ceremony" | null
+
+- networking receptions, speed networking, app-based meetups → kind="networking"
+- festival sets/acts → kind="performance"
+- do not convert topic lists, sponsor activations, or marketing copy into
+  agenda sessions.
 
 If the event publishes only a partial agenda:
 - preserve verified items;
@@ -670,19 +785,88 @@ If full search found no agenda:
 - fieldConfidence.agenda = "NOT_FOUND_AFTER_FULL_SEARCH".
 
 ==================================================
-SPONSORS AND PARTNERS
+VENUES — MULTI-VENUE STORAGE + MAP READINESS
 ==================================================
 
-Only include organizations explicitly labeled as:
-- sponsor
-- partner
-- supporting partner
-- media partner
-or another explicit equivalent.
+venues[] stores ONE ENTRY PER PHYSICAL LOCATION. A single-venue event has one
+entry; a touring series or multi-city weekend has one per stop.
 
-Do not infer sponsors from logos alone.
+Each item:
+{
+  "id": "venue-1",
+  "label": null,
+  "address": { "street": null, "city": null, "state": null,
+               "country": null, "postalCode": null, "formatted": null },
+  "coordinates": { "lat": null, "lng": null },
+  "mapsUrl": null,
+  "dayIds": [],
+  "isPrimary": false
+}
 
-Keep sponsors and partners separate when the source distinguishes them.
+- label = the location's role when the source states one ("Main Campus",
+  "Berlin Stop", "Hall A"); null otherwise.
+- isPrimary = true for the main venue; exactly one primary per event.
+- dayIds = identifiers of agenda days happening at this venue (touring and
+  multi-day events). Empty when the event has a single location.
+- mapsUrl only when the source explicitly supplies a map link.
+
+CRITICAL — COORDINATES:
+The AI NEVER outputs coordinates. "coordinates": { "lat": null, "lng": null }
+ALWAYS, even when the source page shows an embedded map. The backend geocodes
+deterministically from the structured address parts. A wrong pin is worse than
+no pin; an invented pin is a data-integrity violation.
+
+Structure addresses as completely as the source allows — the geocoder's
+precision depends on it: venue name + street + city + country enables an exact
+pin; city-only degrades honestly to a city-level card.
+
+Sync: the legacy singular venue{} (mode, venueName, address, virtualPlatform)
+MUST stay consistent — it mirrors the primary venues[] entry. venue.mode is
+event-level (online/offline/hybrid); online-only events output venues = [] and
+all location in venue.location/virtualPlatform.
+
+==================================================
+MEDIA
+==================================================
+
+media is the universal image/video block:
+{ "hero": null, "gallery": [], "videoUrl": null, "logoUrl": null }
+
+- hero = the official banner/key visual URL when the source supplies one.
+- gallery = only source-supplied images: [{ "url": "", "alt": null,
+  "caption": null }]. alt/caption when stated; never invent descriptions.
+- videoUrl = official trailer/aftermovie/promo video when supplied.
+- logoUrl = event logo when supplied.
+
+Never scrape arbitrary page images into the gallery; only explicitly presented
+official event media.
+
+==================================================
+LANGUAGES, PREPARATION, ACCESSIBILITY
+==================================================
+
+languages[]:
+- ISO 639-1 codes of languages the event is DELIVERED in ("en", "hi", "de");
+- only when the source states the language(s) explicitly;
+- [] when unstated. Do not infer from the organizer's country.
+
+preparation:
+{ "prerequisites": [], "materialsProvided": [], "materialsRequired": [] }
+- prerequisites = experience/knowledge/background the source requires
+  ("basic Python required", "for mid-level managers and above");
+- materialsProvided = what attendees receive ("lunch included", "course
+  materials provided", "starter kit");
+- materialsRequired = what attendees must bring ("bring your own laptop",
+  "install Docker beforehand");
+- primarily for workshop/training_program/webinar; leave empty arrays when the
+  source states nothing. Never invent requirements.
+
+accessibility:
+{ "features": [], "notes": null }
+- features = explicit accommodations only: "wheelchair accessible", "live
+  captions", "sign language interpretation", "step-free access";
+- notes = concise factual accessibility statement when the source provides one;
+- never infer from venue class or assume compliance; absence = [].
 
 ==================================================
 AUDIENCE SCOPE — STRICT
@@ -753,7 +937,12 @@ quality.missingFields:
   "agenda"
   "eventDates.start"
   "registration.fee"
+  "registration.feeState"
   "venue.address.city"
+  "venues[].address.city"
+  "languages"
+  "accessibility.features"
+  "preparation.prerequisites"
 
 quality.lastValidated:
 - use provided scrapedAt when available;
@@ -853,14 +1042,19 @@ Before output:
 5. Did you distinguish registration, early-bird, ticket, and event dates?
 6. Did you distinguish venue from organizer headquarters?
 7. Did you avoid assuming online/offline/hybrid?
-8. Are speakers exact-edition only?
-9. Are agenda items explicit?
-10. Are sponsors/partners explicitly labeled?
-11. Did you resolve or safely preserve conflicts?
-12. Are missing fields reflected in quality?
-13. Are no facts invented?
-14. Are all enum values valid?
-15. Are there extra fields? If yes, remove them.
+8. Are people exact-edition only, with correct roles?
+9. Are agenda items explicit, with valid kind tags?
+10. Are organizations explicitly labeled with correct roles?
+11. Are coordinates null everywhere (backend geocodes)?
+12. Is every physical location present in venues[] with one isPrimary?
+13. Is feeState set whenever the source supports it (never null when known)?
+14. Did you resolve or safely preserve conflicts?
+15. Are missing fields reflected in quality?
+16. Are no facts invented?
+17. Are all enum values valid?
+18. Are there extra fields? If yes, remove them.
+19. Is media included only when explicitly supplied by the source?
+20. Are gallery images limited to official event media?
 
 ==================================================
 FINAL INSTRUCTION

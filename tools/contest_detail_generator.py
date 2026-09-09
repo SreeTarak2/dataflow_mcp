@@ -507,32 +507,42 @@ class ContestDetailGenerator:
                     "success": False,
                     "error": (
                         f"Write was silently dropped (matched=0, upserted=None). "
-                        f"This usually indicates a MongoDB connection issue or "
-                        f"collection-level validation rejection."
+                        f"MongoDB connection or collection-level validation failure."
                     ),
                 }
 
-            # --- Post-write verification: read back to confirm persistence ---
-            verify = self.details_collection.find_one({"contestId": contest_oid})
+            # --- Post-write verification: read back to confirm persistence (3 attempts with backoff) ---
+            verify = None
+            for attempt in range(1, 4):
+                try:
+                    verify = self.details_collection.find_one({"contestId": contest_oid})
+                    if verify:
+                        break
+                    if attempt < 3:
+                        import time
+                        time.sleep(0.1 * attempt)  # 100ms, 200ms backoff
+                except Exception as retry_err:
+                    logger.warning(f"Verification attempt {attempt} failed: {retry_err}")
+                    if attempt == 3:
+                        raise
+            
             if not verify:
                 logger.error(
                     f"contest_details post-write verification FAILED for {contest_id}: "
-                    f"document not found after successful upsert"
+                    f"document not found after {4} attempts, total time ~300ms"
                 )
                 return {
                     "success": False,
                     "error": (
                         f"Write reported success (matched={write_result.matched_count}, "
                         f"upserted={write_result.upserted_id}) but document not found "
-                        f"on immediate read-back. Possible replica set / write concern issue."
+                        f"after 3 verification attempts. Likely replica set lag or network issue."
                     ),
                 }
 
             logger.info(
                 f"Saved contest_details v{new_version} for contest {contest_id} "
-                f"({'new' if is_new else 'update'}, "
-                f"matched={write_result.matched_count}, "
-                f"upserted={write_result.upserted_id})"
+                f"({'new' if is_new else 'update'}, verified in {4 - (attempt or 0)} attempts)"
             )
 
             return {

@@ -10,7 +10,7 @@ Two ways to publish a contest from raw scraped data:
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
 from dataflow_mcp.core import (
@@ -263,17 +263,39 @@ def submit_structured_records(
                     updated += result.modified_count
                 except Exception as e:
                     errors += len(batch)
-                    error_details.append(f"Bulk write error on batch {i // batch_size}: {e}")
+                    error_details.append(f"Batch {i // batch_size} error: {str(e)[:100]}")
+                    logger.error(f"Bulk write failed on batch {i // batch_size}: {e}")
 
-        update_metrics(True)
+        # Post-write verification: read back sample to confirm persistence
+        verified_count = 0
+        if inserted + updated > 0:
+            try:
+                sample_docs = list(target_collection.find(
+                    {"updatedAt": {"$gte": datetime.now(timezone.utc) - timedelta(seconds=5)}},
+                    {"_id": 1}
+                ).limit(min(5, inserted + updated)))
+                verified_count = len(sample_docs)
+                if verified_count == 0 and (inserted + updated) > 0:
+                    logger.warning(
+                        f"Post-write verification: bulk_write reported {inserted + updated} changes "
+                        f"but no documents found in 5-second window. Possible replication lag."
+                    )
+            except Exception as e:
+                logger.error(f"Post-write verification failed: {e}")
+
+        # Only report success if we actually wrote something or completed processing
+        has_actual_success = (inserted + updated) > 0 or (duplicates > 0 and len(records) > 0)
+        update_metrics(has_actual_success)
+        
         return {
-            "success": True,
+            "success": has_actual_success,
             "total_submitted": len(records),
             "inserted": inserted,
             "updated": updated,
             "duplicates": duplicates,
             "skipped": skipped,
             "errors": errors,
+            "verified_persisted": verified_count,
             "details": error_details[:10],
         }
 
@@ -600,6 +622,7 @@ def submit_full_generation(
                     item_result["details_error"] = f"Contest {contest_id} not found after upsert"
                     error_details.append(f"Item {idx}: contest {contest_id} not found after upsert")
                     total_errors += 1
+                    structured_results.append(item_result)
                     continue
 
                 # Validate the details
@@ -619,11 +642,27 @@ def submit_full_generation(
 
                 if is_empty_content:
                     item_result["details_warning"] = (
-                        f"Details too sparse ({total_words} words, "
-                        f"{len(meaningful_keys)} meaningful keys)"
+                        f"Content too sparse ({total_words} words, {len(meaningful_keys)} sections)"
                     )
+                    item_result["details_saved"] = False
                     structured_results.append(item_result)
-                    total_success += 1
+                    error_details.append(f"Item {idx}: '{title}' skipped (insufficient content)")
+                    total_errors += 1
+                    continue
+
+                # Validation must pass before save
+                if not validation.get("valid"):
+                    warning_count = validation.get("warning_count", 0)
+                    item_result["details_warning"] = (
+                        f"Content validation failed ({warning_count} warnings)"
+                    )
+                    item_result["validation_warnings"] = validation.get("warnings", [])[:3]
+                    item_result["details_saved"] = False
+                    structured_results.append(item_result)
+                    error_details.append(
+                        f"Item {idx}: '{title}' validation failed ({warning_count} issues)"
+                    )
+                    total_errors += 1
                     continue
 
                 # Save validated content
@@ -635,33 +674,79 @@ def submit_full_generation(
                 )
 
                 if save_result.get("success"):
-                    item_result["version"] = save_result["version"]
-                    item_result["details_saved"] = True
-                    total_success += 1
+                    # Post-verification: confirm details were actually saved to DB with full defensive checks
+                    try:
+                        if not hasattr(generator, 'details_collection') or generator.details_collection is None:
+                            logger.error(f"Item {idx}: generator.details_collection unavailable")
+                            item_result["details_error"] = "Collection connection unavailable"
+                            item_result["details_saved"] = False
+                            total_errors += 1
+                        else:
+                            verify_saved = generator.details_collection.find_one({"contestId": contest_oid})
+                            if verify_saved:
+                                item_result["version"] = save_result["version"]
+                                item_result["details_saved"] = True
+                                total_success += 1
+                            else:
+                                item_result["details_error"] = "Verification read-back failed after save"
+                                item_result["details_saved"] = False
+                                error_details.append(
+                                    f"Item {idx}: '{title}' not found in post-write verification"
+                                )
+                                total_errors += 1
+                    except Exception as verify_err:
+                        logger.error(f"Item {idx}: verification exception: {verify_err}")
+                        item_result["details_error"] = f"Verification exception: {str(verify_err)[:50]}"
+                        item_result["details_saved"] = False
+                        total_errors += 1
                 else:
-                    item_result["details_error"] = save_result.get("error", "Unknown save error")
+                    err_msg = save_result.get("error", "Unknown save error")
+                    item_result["details_error"] = err_msg
+                    item_result["details_saved"] = False
                     error_details.append(
-                        f"Item {idx}: details save failed for '{title}': {save_result.get('error')}"
+                        f"Item {idx}: save failed for '{title}': {err_msg[:70]}"
                     )
                     total_errors += 1
-                    continue
 
             except Exception as e:
                 item_result["details_error"] = str(e)
+                item_result["details_saved"] = False
                 error_details.append(f"Item {idx}: details error for '{title}': {e}")
                 total_errors += 1
-                continue
 
             structured_results.append(item_result)
 
-        # Gate blocks are successful handling (not failures) — count them as success.
-        update_metrics(total_success > 0 or total_duplicates > 0)
+        # Production-grade result reporting
+        # Separate concerns: duplicates are expected behavior, not errors
+        is_complete_failure = total_errors > 0 and total_success == 0
+        has_actual_success = total_success > 0 or (total_duplicates > 0 and len(items) > 0)
+        
+        # Aggregate error types for better debugging
+        error_summary = {}
+        for err in error_details[-20:] if len(error_details) > 10 else error_details:
+            # Extract error category
+            if "validation failed" in err:
+                key = "validation_failed"
+            elif "not found" in err:
+                key = "not_found"
+            elif "insufficient" in err:
+                key = "insufficient_content"
+            elif "save failed" in err:
+                key = "save_error"
+            else:
+                key = "other"
+            error_summary[key] = error_summary.get(key, 0) + 1
+        
+        update_metrics(has_actual_success and not is_complete_failure)
+        
         return {
-            "success": True,
+            "success": not is_complete_failure,
             "total_items": len(items),
             "successful": total_success,
             "duplicates": total_duplicates,
             "errors": total_errors,
+            "error_rate": round(100 * total_errors / len(items), 1) if len(items) > 0 else 0,
+            "error_summary": error_summary,
             "results": structured_results,
             "error_details": error_details[:10],
         }
