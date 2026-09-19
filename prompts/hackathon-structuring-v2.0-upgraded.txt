@@ -746,12 +746,22 @@ Hackathon-specific rules:
 - Do not invent coordinates.
 - Backend geocoding should be deterministic.
 
+city and venue:
+- Always include both keys in the location output, even for online hackathons.
+- Set to null when no verified city or venue exists.
+- NEVER omit the key. An absent key causes schema drift — null is required.
+
+coordinates:
+- Always include the key. Set to null unless a verified lat/lng is explicitly
+  supplied by the source. Do not geocode by guessing.
+
 multi_location:
 - use only when multiple distinct official locations are confirmed;
 - preserve confirmed countries;
 - do not invent one primary city.
 
-Do not output mapEligible. It is backend-derived.
+Do not output mapEligible. It is backend-derived from location.scope.
+Never include mapEligible in your output — the backend computes it from scope.
 
 participationGeography.scope:
 "worldwide" | "countries" | "region" | "unknown"

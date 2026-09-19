@@ -2,11 +2,11 @@
 
 Workflow for AI chatbots::
 
-    get_records_for_events(source=..., limit=10)   → raw URLs + event-structuring-v1.1.txt prompt
+    get_records_for_events(source=..., limit=10)   → raw URLs + event-structuring-v3.0-upgraded.txt prompt
     [chatbot structures each event with the prompt]
     submit_structured_events(events_json)          → persists to the Events collection
 
-    get_events_for_detail_generation(batch_size=10) → events + event-details-v1.0.txt prompt
+    get_events_for_detail_generation(batch_size=10) → events + event-details-v3.0-upgraded.txt prompt
     [chatbot researches and writes event details]
     submit_event_details(event_id, details_json)   → versioned save to event_details
     get_event_detail_status()                      → coverage metrics for the detail pipeline
@@ -43,7 +43,7 @@ def get_records_for_events(
     collection_name: str = "raw_urls",
 ) -> dict:
     """
-    Fetch raw records + the Events prompt (event-structuring-v1.1.txt,
+    Fetch raw records + the Events prompt (event-structuring-v3.0-upgraded.txt,
     events-v1.1 schema) so a chatbot can structure participatory events
     (conferences, workshops, meetups, webinars, summits, trainings).
 
@@ -144,7 +144,7 @@ def submit_structured_events(
     keep_metadata: bool = False,
 ) -> dict:
     """
-    Submit structured event records (following the event-structuring-v1.1.txt
+    Submit structured event records (following the event-structuring-v3.0-upgraded.txt
     events-v1.1 schema) produced by a chatbot and persist them to the Events
     collection.
 
@@ -478,7 +478,7 @@ def get_events_for_detail_generation(
     """
     Return events needing AI-generated detail pages, sorted by priority.
 
-    The response includes both the prompt text (event-details-v1.0.txt) and
+    The response includes both the prompt text (event-details-v3.0-upgraded.txt) and
     the event documents. Send both to the LLM so it can research and generate
     structured event details (whyAttend, whoShouldAttend, benefits, tips,
     agenda highlights, FAQ, SEO).
@@ -535,7 +535,7 @@ def get_events_for_detail_generation(
                 "structured JSON. Submit results via submit_event_details.",
                 "expected_llm_output": (
                     "A JSON object per event matching the schema in "
-                    "event-details-v1.0.txt"
+                    "event-details-v3.0-upgraded.txt"
                 ),
             },
         }
@@ -567,7 +567,7 @@ def submit_event_details(
 
     Args:
         event_id: The MongoDB ObjectId of the event (from the Events collection)
-        details_json: JSON string matching the event-details-v1.0.txt schema
+        details_json: JSON string matching the event-details-v3.0-upgraded.txt schema
 
     Returns:
         Dictionary with validation results, version info, and any warnings
@@ -719,7 +719,7 @@ def get_event_detail_status() -> Dict[str, Any]:
                     "Shows how many live events still need AI-generated detail "
                     "pages. If total_without_details > 0, call "
                     "get_events_for_detail_generation(batch_size=10) to fetch "
-                    "the next batch plus the event-details-v1.0.txt prompt, then "
+                    "the next batch plus the event-details-v3.0-upgraded.txt prompt, then "
                     "submit results via submit_event_details."
                 ),
             },

@@ -51,14 +51,15 @@ PROMPTS_DIR = BASE_DIR / "prompts"
 DEFAULT_COLLECTION = os.getenv("COLLECTION_NAME", "Contests")
 EVENT_COLLECTION = os.getenv("EVENT_COLLECTION_NAME", "Events")
 
-# Canonical prompt files (descriptive names — old Prompts*.txt names are
-# kept as alias copies in prompts/ for backward compatibility).
-PROMPT_CONTEST_STRUCTURING = "contest-structuring-v4.1.txt"
-PROMPT_CONTEST_DETAILS = "contest-details-v1.0.txt"
-PROMPT_EVENTS = "event-structuring-v1.1.txt"
-PROMPT_EVENT_DETAILS = "event-details-v1.0.txt"
+# Canonical prompt files — kept in sync with the Phase2 source-of-truth copies
+# (Phase2/*.txt). Note: hackathon-structuring-v2.0-upgraded.txt exists in
+# prompts/ but is not wired to any tool yet.
+PROMPT_CONTEST_STRUCTURING = "contest-structuring-v4.3-upgraded.txt"
+PROMPT_CONTEST_DETAILS = "contest-details-v1.1-upgraded.txt"
+PROMPT_EVENTS = "event-structuring-v3.0-upgraded.txt"
+PROMPT_EVENT_DETAILS = "event-details-v3.0-upgraded.txt"
 PROMPT_BACKFILL = "contest-backfill-v4.0.txt"
-PROMPT_VALIDATION = "validation-v1.0.txt"
+PROMPT_VALIDATION = "validation-v2.0-upgraded.txt"
 
 # ─────────────────────────────────────────────────────────────────────────
 # Generic helpers
@@ -654,7 +655,7 @@ def _build_normalized_event(
     keep_metadata: bool = False,
 ) -> tuple[Dict[str, Any], List[str]]:
     """
-    Map a structured event record (event-structuring-v1.1.txt schema) to a
+    Map a structured event record (event-structuring-v3.0-upgraded.txt schema) to a
     normalized dict ready for upsert into the Events collection.
 
     Applies the events-v1.1 defaults and light enum validation:

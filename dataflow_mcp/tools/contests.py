@@ -316,7 +316,7 @@ def get_records_for_full_generation(
 ) -> dict:
     """
     Fetch raw scraped records + BOTH prompts (contest-structuring-v4.0.txt +
-    contest-details-v1.0.txt) so a chatbot can structure AND generate contest
+    contest-details-v1.1-upgraded.txt) so a chatbot can structure AND generate contest
     details in one pass.
 
     Use this when you want to go from raw scraped data to published contest details
@@ -325,7 +325,7 @@ def get_records_for_full_generation(
       2. For each record, use its URL (or title) to search the web and find
          the actual contest page
       3. Extract structured fields following the v4.0 schema
-      4. Research and generate contest details following contest-details-v1.0.txt
+      4. Research and generate contest details following contest-details-v1.1-upgraded.txt
       5. Return both via submit_full_generation
 
     Args:
@@ -395,7 +395,7 @@ def get_records_for_full_generation(
                     "Send each record to your LLM with BOTH prompts above. "
                     "First structure the record using contest-structuring-v4.0.txt schema, "
                     "then use web search to research and generate contest details "
-                    "following contest-details-v1.0.txt. "
+                    "following contest-details-v1.1-upgraded.txt. "
                     "Submit both as a combined result via submit_full_generation."
                 ),
                 "expected_output": (
@@ -428,7 +428,7 @@ def submit_full_generation(
     Use this after get_records_for_full_generation. The JSON must contain an
     'items' array, where each item has:
       - record: Structured contest data following the v4.0 schema
-      - details: Contest details following contest-details-v1.0.txt schema
+      - details: Contest details following contest-details-v1.1-upgraded.txt schema
 
     This tool:
       1. Upserts each structured record into the Contests collection
@@ -768,7 +768,7 @@ def get_contests_for_detail_generation(
     """
     Return contests needing AI-generated detail pages, sorted by priority.
 
-    The response includes both the prompt text (contest-details-v1.0.txt)
+    The response includes both the prompt text (contest-details-v1.1-upgraded.txt)
     and the contest documents. Send both to Mistral so it can research and
     generate structured contest details.
 
@@ -822,7 +822,7 @@ def get_contests_for_detail_generation(
                 "and return structured JSON. Submit results via "
                 "submit_contest_details.",
                 "expected_llm_output": (
-                    "A JSON object per contest matching the schema in contest-details-v1.0.txt"
+                    "A JSON object per contest matching the schema in contest-details-v1.1-upgraded.txt"
                 ),
             },
         }
@@ -853,7 +853,7 @@ def submit_contest_details(
 
     Args:
         contest_id: The MongoDB ObjectId of the contest
-        details_json: JSON string matching the contest-details-v1.0.txt schema
+        details_json: JSON string matching the contest-details-v1.1-upgraded.txt schema
 
     Returns:
         Dictionary with validation results, version info, and any warnings

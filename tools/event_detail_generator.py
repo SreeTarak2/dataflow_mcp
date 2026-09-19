@@ -6,12 +6,12 @@ Mirrors ``tools/contest_detail_generator.py`` for the Events collection:
     Pipeline:
       1. get_priority_queue() → find events needing details, sorted by priority
       2. LLM generates content (via separate prompt/submit flow,
-         prompts/event-details-v1.0.txt)
+         prompts/event-details-v3.0-upgraded.txt)
       3. validate() → check output quality
       4. save() → versioned upsert into event_details
 
 This tool is prompt-serving and validation-only. The LLM does its own web
-research and generation via the prompt in event-details-v1.0.txt.
+research and generation via the prompt in event-details-v3.0-upgraded.txt.
 """
 
 import logging

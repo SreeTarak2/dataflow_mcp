@@ -680,10 +680,16 @@ Never use:
 - source website location;
 - a guessed city or country.
 
+city and venue:
+- Always include both keys in the location output, even for online or worldwide
+  contests.
+- Set to null when no verified city or venue exists.
+- NEVER omit the key. An absent key causes schema drift — null is required.
+
 Coordinates:
 - coordinates are not required for model extraction.
-- Keep coordinates null unless explicitly supplied by verified source evidence.
-- Do not geocode by guessing.
+- Always include the key. Set to null unless a verified lat/lng is explicitly
+  supplied by the source. Do not geocode by guessing.
 - Backend geocoding should be deterministic.
 
 MULTI-LOCATION:
@@ -699,6 +705,7 @@ Do not add a fake primary city.
 MAP LOGIC:
 Do not output mapEligible. It is backend-derived from verified location.scope
 and available geographic data.
+Never include mapEligible in your output — the backend computes it from scope.
 
 Worldwide and online opportunities must never receive fake physical pins.
 

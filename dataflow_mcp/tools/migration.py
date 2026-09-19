@@ -28,7 +28,7 @@ def get_prompted_contests(
     MongoDB contests in a single response so it can normalize them locally.
 
     Args:
-        prompt_name: Prompt file to bundle (default contest-backfill-v2.0.txt).
+        prompt_name: Prompt file to bundle (default contest-backfill-v4.0.txt).
                      Old alias name "Prompts-backfill.txt" is also accepted.
         batch_size: Contests to fetch (max 100)
         skip: Number of contests to skip for pagination
