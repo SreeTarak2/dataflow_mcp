@@ -28,6 +28,65 @@ from tools.contest_detail_generator import ContestDetailGenerator
 from tools.dedup_gate import build_title_index, find_near_duplicates, normalize_title
 
 
+# ── Details payload coercion ─────────────────────────────────────────────
+
+
+_DETAILS_CONTENT_KEYS = (
+    "hero",
+    "whatYouWillDo",
+    "whyJoin",
+    "whoShouldApply",
+    "benefits",
+    "tips",
+    "shouldYouApply",
+    "faq",
+    "submissionGuide",
+    "timelineSummary",
+    "readingTime",
+)
+_DETAILS_SEO_KEYS = ("metaTitle", "metaDescription", "keywords")
+
+
+def _coerce_details_payload(parsed: Any) -> Dict[str, Any]:
+    """
+    Normalize an AI-generated details payload into the
+    ``{"content": {...}, "seo": {...}}`` shape expected by
+    ContestDetailGenerator.validate().
+
+    Chatbots sometimes send the content sections flat at the top level (or
+    wrap only the SEO block), which the validator previously read as an empty
+    ``content`` dict — rejecting long, valid payloads with
+    "content too sparse (0 words, 0 meaningful keys)".
+
+    Accepted shapes:
+      - {"content": {...}, "seo": {...}}   (canonical — returned as-is)
+      - {"whyJoin": ..., "benefits": ...}  (flat content → wrapped)
+      - {"content": {...}, "metaTitle": …} (SEO flat at top level → wrapped)
+    """
+    if not isinstance(parsed, dict):
+        return {"content": {}, "seo": {}}
+
+    content = parsed.get("content")
+    if not isinstance(content, dict):
+        content = {}
+
+    seo = parsed.get("seo")
+    if not isinstance(seo, dict):
+        seo = {}
+
+    # Lift flat content keys into the content block
+    for key in _DETAILS_CONTENT_KEYS:
+        if key in parsed and key not in content:
+            content[key] = parsed[key]
+
+    # Lift flat SEO keys into the seo block
+    for key in _DETAILS_SEO_KEYS:
+        if key in parsed and key not in seo:
+            seo[key] = parsed[key]
+
+    return {"content": content, "seo": seo}
+
+
 # ── Structuring pipeline ─────────────────────────────────────────────────
 
 
@@ -625,6 +684,9 @@ def submit_full_generation(
                     structured_results.append(item_result)
                     continue
 
+                # Auto-wrap flat payloads (chatbots often omit the envelope)
+                details = _coerce_details_payload(details)
+
                 # Validate the details
                 validation = generator.validate(details, contest_data)
 
@@ -873,13 +935,48 @@ def submit_contest_details(
             return {"success": False, "error": f"Invalid JSON: {e}"}
 
         if not isinstance(parsed, dict):
-            return {"success": False, "error": "Expected a JSON object, got array"}
+            return {
+                "success": False,
+                "error": "Expected a JSON object, got array",
+                "hint": (
+                    "Wrap each contest's details as one object: "
+                    '{"content": {...}, "seo": {...}}'
+                ),
+            }
 
+        # Auto-wrap flat payloads (chatbots often omit the content/seo envelope)
+        coerced = _coerce_details_payload(parsed)
+        content, seo = coerced["content"], coerced["seo"]
+        if not content:
+            return {
+                "success": False,
+                "error": "No content sections found in details_json",
+                "hint": (
+                    "details_json must be {\"content\": {\"whyJoin\": …, "
+                    "\"benefits\": […], …}, \"seo\": {…}}. Content sections "
+                    "(whyJoin, benefits, tips, …) must live INSIDE the "
+                    "\"content\" object (or at the top level, which is now "
+                    "auto-wrapped)."
+                ),
+            }
+        parsed = {"content": content, "seo": seo}
         # Fetch the contest document for validation context
         from bson.objectid import ObjectId
+        from bson.errors import InvalidId
         from config.mongodb import db
 
-        contest_oid = ObjectId(contest_id)
+        try:
+            contest_oid = ObjectId(contest_id)
+        except (InvalidId, TypeError):
+            return {
+                "success": False,
+                "error": f"contest_id '{contest_id}' is not a valid MongoDB ObjectId",
+                "hint": (
+                    "contest_id must be the 24-character hex _id from the "
+                    "Contests collection (e.g. 6aaea300cb599abddcca0f33), "
+                    "passed as a plain string."
+                ),
+            }
         contest_data = db[os.getenv("COLLECTION_NAME", "Contests")].find_one({"_id": contest_oid})
 
         if not contest_data:
@@ -917,6 +1014,11 @@ def submit_contest_details(
                     f"{len(meaningful_keys)} meaningful sections). "
                     f"The AI could not find enough information to generate "
                     f"contest details. Review the research step and try again."
+                ),
+                "hint": (
+                    "If your JSON was long, it was probably missing the "
+                    "\"content\": {...} wrapper — sections like whyJoin, "
+                    "benefits and tips must be inside \"content\"."
                 ),
                 "validation": {
                     "valid": validation.get("valid", False),
