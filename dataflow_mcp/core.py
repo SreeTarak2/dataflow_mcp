@@ -61,13 +61,31 @@ PROMPT_EVENT_DETAILS = "event-details-v3.0-upgraded.txt"
 PROMPT_BACKFILL = "contest-backfill-v4.0.txt"
 PROMPT_VALIDATION = "validation-v2.0-upgraded.txt"
 
+# Legacy names clients still ask for -> canonical files on disk.
+# Covers old version numbers and Phase2 underscore spellings.
+_PROMPT_ALIASES = {
+    "contest-structuring-v4.0.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4.2.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4_0-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4_2-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4_3-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-details-v1.0.txt": "contest-details-v1.1-upgraded.txt",
+    "Prompts-contest-details.txt": PROMPT_CONTEST_DETAILS,
+    "Prompts-backfill.txt": PROMPT_BACKFILL,
+}
+
 # ─────────────────────────────────────────────────────────────────────────
 # Generic helpers
 # ─────────────────────────────────────────────────────────────────────────
 
 
 def load_prompt_text(prompt_name: str) -> str:
-    """Load a prompt file from the local prompts directory."""
+    """Load a prompt file from the local prompts directory.
+
+    Legacy prompt names (e.g. contest-structuring-v4.0.txt) are transparently
+    mapped to their current canonical files.
+    """
+    prompt_name = _PROMPT_ALIASES.get(prompt_name, prompt_name)
     prompt_path = PROMPTS_DIR / prompt_name
 
     if not prompt_path.exists():

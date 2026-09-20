@@ -57,10 +57,14 @@ class ContestDetailGenerator:
         try:
             now = datetime.now(timezone.utc)
 
-            # Get contest IDs that already have completed details
+            # Get contest IDs that already have completed details.
+            # Use .get(): older/manual documents may lack the contestId field,
+            # and a bare doc["contestId"] here surfaces as KeyError 'contestId'.
             existing_ids = set()
             for doc in self.details_collection.find({}, {"contestId": 1}):
-                existing_ids.add(doc["contestId"])
+                cid = doc.get("contestId")
+                if cid is not None:
+                    existing_ids.add(cid)
 
             pipeline = [
                 {

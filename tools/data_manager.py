@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from bson.objectid import ObjectId
 from pymongo.errors import PyMongoError
@@ -36,6 +37,33 @@ class DataManager:
             return {k: DataManager._coerce_objectid_strings(v) for k, v in obj.items()}
         if isinstance(obj, list):
             return [DataManager._coerce_objectid_strings(item) for item in obj]
+        return obj
+
+    @staticmethod
+    def _make_json_safe(obj: Any) -> Any:
+        """Recursively convert MongoDB types into JSON-serializable values.
+
+        ObjectId -> str, datetime -> ISO string, Decimal128 -> str.
+        Required because MCP tools return structured output, and any
+        non-JSON-native value in the payload (e.g. an ObjectId stored in a
+        ``contestId`` field) makes serialization fail with an
+        "outputSchema defined but no structured output returned" error.
+        """
+        if isinstance(obj, dict):
+            return {key: DataManager._make_json_safe(value) for key, value in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [DataManager._make_json_safe(item) for item in obj]
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        try:
+            from bson.decimal128 import Decimal128
+
+            if isinstance(obj, Decimal128):
+                return str(obj)
+        except Exception:  # pragma: no cover - bson always available here
+            pass
         return obj
 
     @staticmethod
@@ -94,10 +122,8 @@ class DataManager:
             data = list(query)
             total_count = collection.count_documents(filter_query)
 
-            # Convert ObjectId to string for JSON serialization
-            for doc in data:
-                if "_id" in doc:
-                    doc["_id"] = str(doc["_id"])
+            # Convert MongoDB types (ObjectId, datetime, ...) to JSON-safe values
+            data = DataManager._make_json_safe(data)
 
             logger.info(f"Read {len(data)} documents from {collection_name}")
 
@@ -378,8 +404,8 @@ class DataManager:
                 logger.warning(f"Document not found: {document_id}")
                 return {"success": False, "error": "Document not found"}
 
-            # Convert ObjectId to string
-            document["_id"] = str(document["_id"])
+            # Convert MongoDB types (ObjectId, datetime, ...) to JSON-safe values
+            document = DataManager._make_json_safe(document)
 
             logger.info(f"Retrieved document from {collection_name}: {document_id}")
 
