@@ -465,11 +465,14 @@ class ContestDetailGenerator:
             meaningful_keys = [k for k in content.keys() if k != "readingTime"]
             has_meaningful_content = len(meaningful_keys) > 0
 
-            # Flatten content fields to top level to match existing database schema
-            # (existing documents have whyJoin, whoShouldApply, benefits, tips, readingTime at top level)
-            # IMPORTANT: build doc AFTER content merge and then re-assert protected fields
-            # so that LLM-generated content cannot overwrite system fields like contestId.
-            doc = dict(content)  # shallow copy of content
+            # Store BOTH formats so every consumer can read the document:
+            # 1. Canonical nested form: doc["content"] = {whyJoin, benefits, ...}
+            #    (matches the contest-details-v1.1-upgraded.txt schema that
+            #    validate() and AI callers check against)
+            # 2. Legacy flattened form: whyJoin, whoShouldApply, benefits, tips,
+            #    readingTime at top level (matches pre-existing documents)
+            doc = dict(content)  # shallow copy of content -> flat fields
+            doc["content"] = dict(content)  # canonical nested copy
             # Add SEO fields at top level
             if seo:
                 doc["seo"] = seo
