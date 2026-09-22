@@ -49,7 +49,7 @@ Step 2 — Collect candidate evidence per critical field with source URL, type, 
 Step 3 — Verify against v4.3 schema groups (report per-group):
 
   1. Identity & Type: title, type (contest|hackathon|grant|fellowship|award|challenge), source.type (official|aggregator|unknown), link reachable
-  2. Category: rawCategory vs category (Creative Arts|Technology & AI|Science & Research|Business & Innovation|Writing & Media|Environment & Sustainability|Food & Cooking|Education & Learning|Social Impact & Leadership|Open / Multidisciplinary) + subCategory
+  2. Category: category matches the canonical taxonomy (CH Taxonomy v2) + subCategory
   3. Timeline (date-type aware): startDateUTC vs submissionDeadlineUTC vs eventEndUTC + organizerTimeZone — never move one date type into another field
   4. Prize (never infer money): isMonetary, originalAmount (preserve "€20,000"), totalUSD (numeric USD, null if ambiguous), currency ISO, prizeSummary (2-10 words) — distinguish pool vs track vs individual
   5. Entry Fee (four states): free-confirmed | paid amount known | paid amount unknown | unclear — check feeConfidence/feeNote

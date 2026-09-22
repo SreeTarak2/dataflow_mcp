@@ -131,7 +131,6 @@ Output: Provide ONLY the patch with fields that need updating.
 **Example Claude Output (patch):**
 ```json
 {
-  "rawCategory": "Filmmaking",
   "canonicalCategory": "Writing & Media",
   "description": "Submit short films under 40 minutes across any genre. Open to filmmakers worldwide. Oscar-qualifying with €20,000 in prizes distributed across three categories.",
   "tags": ["oscar-qualifying"],
@@ -288,7 +287,6 @@ The backfill prompt keeps these fields UNCHANGED:
 
 The backfill prompt ADDS/UPDATES these:
 - ✅ `canonicalCategory` — mapped from existing category
-- ✅ `rawCategory` — copy of existing category (if missing)
 - ✅ `prizeSummary` — humanized prize description
 - ✅ `feeConfidence` — confidence level in fee extraction
 - ✅ `eligibilityLabel` — humanized eligibility text

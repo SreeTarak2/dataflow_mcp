@@ -80,7 +80,6 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     # Category fields
     "category",
     "subCategory",
-    "rawCategory",
     # Tags (used for junk location → tag migration like BRICS → brics)
     "tags",
     # Timeline
@@ -474,7 +473,6 @@ class PatchValidator:
             # Category
             "category": lambda v: PatchValidator._check_enum(v, CANONICAL_CATEGORIES, "category"),
             "subCategory": lambda v: PatchValidator._check_string(v, "subCategory", max_len=100),
-            "rawCategory": lambda v: PatchValidator._check_string(v, "rawCategory", max_len=100),
             # Tags
             "tags": lambda v: PatchValidator._check_list(v, "tags"),
             # Type

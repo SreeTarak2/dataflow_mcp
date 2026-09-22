@@ -11,7 +11,7 @@
 #   - structured participationGeography { scope, allowedCountries[], allowedRegions[], restrictedCountries[], eligibilitySummary }
 #   + the existing v3.2 patches (description, prizeSummary, feeConfidence, eligibilityLabel, primarySkillLevel)
 #
-# Tags, rawCategory, category, subCategory already handled by normalizeContestTags.js — do NOT re-derive.
+# Tags, category, subCategory already handled by normalizeContestTags.js — do NOT re-derive.
 # Input: ONE existing contest JSON (already in MongoDB, may be v1/v2/v3)
 # Output: JSON diff/patch containing ONLY fields that need to be added/updated.
 #         Omit fields already correct. Output {} if nothing to change.
@@ -131,7 +131,7 @@ GLOBAL RULES (NON-NEGOTIABLE)
 - Output ONLY a JSON object with the fields that need changing
 - Do NOT output fields that are already correct
 - Do NOT change: type, title, link, image, source,
-  rawCategory, category, subCategory, timeline,
+  category, subCategory, timeline,
   filterKeys.domain, filterKeys.format, filterKeys.medium
   (these were set by the original prompt or migration script)
 - You MAY change: tags (only to add missing junk-tags like "brics"), description, prize, entry, audience (eligibilityLabel etc.), location, participationGeography
@@ -398,7 +398,6 @@ WHAT NOT TO TOUCH (PRESERVE AS-IS)
 - link
 - image (primary, backup)
 - source
-- rawCategory (already set by migration script)
 - category (already set by migration script)
 - subCategory (already set by migration script)
 - timeline (all dates)

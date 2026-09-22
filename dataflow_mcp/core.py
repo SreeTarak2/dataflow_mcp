@@ -189,7 +189,7 @@ def _derive_contest_status(contest: Dict[str, Any]) -> str:
 def _infer_theme(contest: Dict[str, Any]) -> str:
     """Infer a visual theme from contest fields with conservative fallback."""
     tags = [str(tag).lower() for tag in contest.get("tags", []) if isinstance(tag, str)]
-    category = str(contest.get("category") or contest.get("rawCategory") or "").lower()
+    category = str(contest.get("category") or "").lower()
     description = str(contest.get("description") or "").lower()
     combined = " ".join(tags + [category, description])
 
@@ -218,7 +218,7 @@ def _build_cover_image_prompt(contest: Dict[str, Any]) -> str:
     source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
     organizer = _clean_text(source.get("name"), "Organizer not specified")
     category = _clean_text(
-        contest.get("category") or contest.get("rawCategory"),
+        contest.get("category"),
         "Open / Multidisciplinary",
     )
     description = _clean_text(contest.get("description"))
@@ -264,7 +264,7 @@ def _build_broken_image_card(contest: Dict[str, Any]) -> Dict[str, Any]:
         "contest_id": contest.get("_id"),
         "title": _clean_text(contest.get("title"), "Untitled Opportunity"),
         "category": _clean_text(
-            contest.get("category") or contest.get("rawCategory"),
+            contest.get("category"),
             "Open / Multidisciplinary",
         ),
         "status": _derive_contest_status(contest),
@@ -365,8 +365,6 @@ def _build_normalized_record(
     # Simple string fields
     if "description" in record and record["description"]:
         normalized["description"] = record["description"]
-    if "rawCategory" in record and record["rawCategory"]:
-        normalized["rawCategory"] = record["rawCategory"]
     if "category" in record and record["category"]:
         normalized["category"] = record["category"]
 

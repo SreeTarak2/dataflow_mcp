@@ -70,7 +70,6 @@ FINAL SCHEMA (STRICT)
     "type": null
   },
 
-  "rawCategory": null,
   "category": null,
   "subCategory": null,
 
@@ -438,49 +437,82 @@ audienceScope may only be:
 CATEGORY RULES
 ==================================================
 
-rawCategory:
-- Copy source category exactly when present.
-- Do not normalize rawCategory.
-- null when absent.
-
 category:
-Choose EXACTLY ONE:
+Choose EXACTLY ONE (CH Taxonomy v2, 2026-09):
 
-"Creative Arts"
-"Technology & AI"
+"Creative Arts & Design"
+"AI & Technology"
+"Engineering & Innovation"
 "Science & Research"
-"Business & Innovation"
+"Business & Entrepreneurship"
 "Writing & Media"
 "Environment & Sustainability"
-"Food & Cooking"
 "Education & Learning"
 "Social Impact & Leadership"
-"Open / Multidisciplinary"
+"Open & Multidisciplinary"
 
 Use the existing category mapping logic from the source data first.
 
 Mapping principles:
 1. Exact known mapping wins.
-2. If rawCategory is weak, use title + explicit submission/topic evidence.
-3. If the contest spans 3 or more unrelated domains, use
-   "Open / Multidisciplinary".
-4. If confidence is low, use "Open / Multidisciplinary".
-5. Never invent a category outside the canonical list.
-6. Never leave category null.
+2. If the source category is weak, missing, or ambiguous, use title +
+   explicit submission/topic evidence.
+3. Classify by the participant's PRIMARY ACTIVITY, not every subject
+   mentioned (e.g. an AI agriculture challenge → "AI & Technology", a
+   farming-robot build → "Engineering & Innovation").
+4. "Engineering & Innovation" is for physical systems: hardware, robotics
+   builds, aerospace, drones, vehicles, embedded electronics, manufacturing,
+   prototypes. Pure software/AI work stays in "AI & Technology".
+5. If the contest spans 3 or more unrelated domains, use
+   "Open & Multidisciplinary".
+6. If confidence is low, use "Open & Multidisciplinary".
+7. Never invent a category outside the canonical list.
+8. Never leave category null.
+9. Do NOT use "Food & Cooking" — it was retired; food/culinary contests
+   go to "Open & Multidisciplinary" with food kept in tags/themes.
 
 Examples of ambiguity handling:
-- Photography using AI tools → Creative Arts when the submitted work is
-  photography.
+- Photography using AI tools → Creative Arts & Design when the submitted
+  work is photography.
 - Climate-tech startup pitch → Environment & Sustainability when climate is
   the explicit core problem.
 - Research fellowship in social science → Science & Research when research is
   the primary activity.
-- General-domain hackathon → Technology & AI only when no clearer domain exists.
-- Performing arts without a dedicated category → Open / Multidisciplinary.
+- General-domain hackathon → AI & Technology only when no clearer domain exists.
+- Performing arts without a dedicated category → Open & Multidisciplinary.
 
 subCategory:
-Use the canonical subcategory mapping when a confident mapping exists.
-Use null for Open / Multidisciplinary or when no supported subcategory exists.
+Choose from the ALLOWED list for the chosen category ONLY (exact spelling).
+If none fits confidently, use null — never invent a value.
+"Open & Multidisciplinary" is always null.
+
+Creative Arts & Design:
+  "Photography" | "Illustration & Visual Art" | "Graphic Design" |
+  "Fashion Design" | "Architecture & Urban Design"
+AI & Technology:
+  "Software Development" | "AI & Machine Learning" |
+  "Robotics & Autonomous Systems"
+Engineering & Innovation:
+  "Robotics & Autonomous Systems" | "Aerospace, Drones & Space" |
+  "Hardware, Embedded & IoT" | "Automotive, EV & Formula" |
+  "Manufacturing, 3D Printing & CAD" | "Product Engineering" |
+  "Engineering Design"
+Science & Research:
+  "Physical & Space Sciences"
+Business & Entrepreneurship:
+  "Entrepreneurship & Startups"
+Writing & Media:
+  "Fiction & Creative Writing" | "Film & Video" | "Music & Audio" |
+  "Journalism & Nonfiction"
+Environment & Sustainability:
+  "Conservation & Ecology" | "Climate & Clean Energy" |
+  "Sustainable Food & Agriculture"
+Education & Learning:
+  "Teaching & Curriculum" | "Spelling & Vocabulary"
+Social Impact & Leadership:
+  "Community & Equity" | "Youth Leadership"
+Open & Multidisciplinary:
+  (always null)
 
 ==================================================
 DESCRIPTION RULES — CARD VERSION
@@ -865,17 +897,17 @@ FILTER KEYS RULES
 filterKeys.domain:
 Derive in kebab-case from category.
 
-Examples:
-Creative Arts → creative-arts
-Technology & AI → technology-ai
+Examples (CH Taxonomy v2, 2026-09):
+Creative Arts & Design → creative-arts-design
+AI & Technology → ai-technology
+Engineering & Innovation → engineering-innovation
 Science & Research → science-research
-Business & Innovation → business-innovation
+Business & Entrepreneurship → business-entrepreneurship
 Writing & Media → writing-media
 Environment & Sustainability → environment-sustainability
-Food & Cooking → food-cooking
 Education & Learning → education-learning
 Social Impact & Leadership → social-impact-leadership
-Open / Multidisciplinary → open-multidisciplinary
+Open & Multidisciplinary → open-multidisciplinary
 
 filterKeys.format:
 Use only supported submission/output formats:

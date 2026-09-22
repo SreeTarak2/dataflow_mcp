@@ -63,7 +63,6 @@ FINAL SCHEMA (STRICT)
   "description": null,
   "descriptionDetailed": null,
 
-  "rawCategory": null,
   "category": null,
   "subCategory": null,
 
@@ -478,10 +477,6 @@ Allowed values:
 ==================================================
 CATEGORY RULES
 ==================================================
-
-rawCategory:
-- copy the source category exactly when present;
-- null when absent.
 
 category must be exactly one of:
 "Artificial Intelligence"
