@@ -1040,6 +1040,58 @@ None
 
 ---
 
+## 🗑️ replace_contest — guarded duplicate delete
+
+### Purpose
+Safely remove old-schema duplicates once a new-schema record is in place.
+Deletion is refused unless a guard classifies the title group as a safe
+replacement — and even then, every duplicate is **archived first**.
+
+### Safety Rules
+1. **Dry run by default** — re-run with `dry_run=false` to actually delete
+2. **Exact-title only** — every duplicate must have the same title
+   (case/punctuation/whitespace-insensitive, same word order). Reworded
+   titles → `review_required`, nothing deleted
+3. **Archive before delete** — full snapshots go to `<collection>_archived`
+   with `replacedBy` + `archivedAt`; incomplete archiving aborts the delete
+4. **Reversible** — `restore_contest(archive_id)` puts a doc back under its
+   original `_id`
+
+### Example Call
+```bash
+Tool: replace_contest
+Parameters: new_record_id: "65f8a1...", dry_run: true   # preview first
+Parameters: new_record_id: "65f8a1...", dry_run: false  # archive + delete
+```
+
+### Example Response (live run)
+```json
+{
+  "success": true,
+  "verdict": "safe_replace",
+  "dry_run": false,
+  "kept_id": "65f8a1...",
+  "archived_ids": ["65f899..."],
+  "deleted": [{ "_id": "65f899...", "deleted": true, "restorable": true }],
+  "archive_collection": "Contests_archived",
+  "message": "Archived 1 duplicate(s) to Contests_archived, then removed them from Contests. Restore anytime with restore_contest."
+}
+```
+
+### Verdicts
+| Verdict | Meaning | Deletes? |
+|---|---|---|
+| `safe_replace` | All others in the title group share the exact title | ✅ after archive |
+| `review_required` | A reworded title matches only after word-sorting | ❌ |
+| `blocked` | No other live record shares the title (or no usable title) | ❌ |
+
+### When to Use
+- After `submit_structured_records` inserts a new-schema record for a contest
+  that already exists under the old schema
+- Together with `find_duplicate_contests` to audit and clean duplicates
+
+---
+
 Prompt files now use descriptive names. The old `Prompts*.txt` names are kept
 as alias copies in `prompts/` so nothing breaks.
 
@@ -1069,7 +1121,7 @@ dataflow_mcp/
 │   ├── events.py      # get_records_for_events, submit_structured_events, get_events, get_events_overview, get_events_for_detail_generation, submit_event_details, get_event_detail_status
 │   ├── raw_data.py    # get_raw_data_status, read_raw_collection, get_scraped_overview, process_raw_data
 │   ├── validation.py  # claim/submit validation, status, prompt
-│   └── audit.py       # find_duplicate_contests, flag_contest_discrepancy
+│   └── audit.py       # find_duplicate_contests, replace_contest, restore_contest, flag_contest_discrepancy
 main.py                # thin entry point → dataflow_mcp.server
 ```
 

@@ -15,6 +15,12 @@ The gate treats a same-source + exact-title (case-insensitive) match as the
 (`{source, title}`) — that is NOT flagged as a duplicate. Any other live
 contest with the same normalized title (different source, or a reworded
 title from the same source) IS flagged.
+
+The module also provides `classify_replacement`, the safety guard behind the
+`replace_contest` MCP tool: it decides whether old records sharing a title
+with a surviving record may be auto-deleted (exact same title only) or must
+go to human review (reworded titles). It is a pure function — no Mongo — so
+it is unit-testable in isolation.
 """
 
 import re
@@ -87,6 +93,126 @@ def build_title_index(collection) -> Dict[str, List[Dict[str, Any]]]:
             continue
         index.setdefault(norm, []).append(doc)
     return index
+
+
+def _exact_title_key(title: Any) -> str:
+    """Collapse a title for EXACT-match comparison (word order matters).
+
+    Lowercase, replace every run of non-alphanumerics with one space, and
+    collapse whitespace — but do NOT sort words. "WOLDA 2026!" and
+    "wolda  2026" produce the same key; "Climate Art Award" and
+    "Art Climate Award" do not. Returns "" for empty/non-string input.
+    """
+    if not title or not isinstance(title, str):
+        return ""
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", title.lower()).split())
+
+
+def classify_replacement(
+    survivor: Dict[str, Any],
+    candidates: List[Dict[str, Any]],
+    target_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Decide which old records may be deleted when a record is replaced.
+
+    This is the safety guard behind the ``replace_contest`` MCP tool. It is
+    PURE — no database access — so callers pass in the candidate list (e.g.
+    the live docs sharing the survivor's normalized title, from
+    ``build_title_index``).
+
+    Args:
+        survivor: The NEW record that should be kept (must have a usable
+            ``title``).
+        candidates: Live records sharing the survivor's normalized title
+            (may include the survivor itself).
+        target_id: The survivor's ``_id`` (as a string). Candidates with
+            this id are skipped, never queued for deletion.
+
+    Verdicts:
+        - ``safe_replace``: every other candidate matches the survivor's
+          EXACT title (case/punctuation/whitespace-insensitive, same word
+          order). Those ids are returned in ``delete_ids``.
+        - ``review_required``: at least one candidate matches only after
+          word-sorting (a reworded title) — the group is ambiguous, so
+          ``delete_ids`` is empty and the fuzzy matches are listed under
+          ``review`` for a human.
+        - ``blocked``: no usable title, or no other live record shares the
+          title (deleting would orphan the survivor's content, not remove a
+          duplicate).
+
+    Returns:
+        ``{"verdict", "reason", "delete_ids", "review", "kept_id"}``
+        where ``delete_ids`` are strings safe to archive+delete, and
+        ``review`` entries carry ``{_id, title, source, link, match_type}``.
+    """
+    kept_id = str(target_id) if target_id else None
+    incoming_key = _exact_title_key(survivor.get("title"))
+
+    def _result(verdict: str, reason: str, delete_ids: List[str], review: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {
+            "verdict": verdict,
+            "reason": reason,
+            "delete_ids": delete_ids,
+            "review": review,
+            "kept_id": kept_id,
+        }
+
+    if not incoming_key:
+        return _result(
+            "blocked",
+            "Surviving record has no usable title; refusing to classify a deletion.",
+            [],
+            [],
+        )
+
+    delete_ids: List[str] = []
+    review: List[Dict[str, Any]] = []
+
+    for doc in candidates:
+        doc_id = str(doc.get("_id", ""))
+        if kept_id and doc_id == kept_id:
+            continue  # the surviving record itself — never a deletion target
+        exact = _exact_title_key(doc.get("title")) == incoming_key
+        entry = {
+            "_id": doc_id,
+            "title": doc.get("title"),
+            "source": source_name_of(doc) or None,
+            "link": doc.get("link"),
+            "match_type": "exact_title" if exact else "reworded_title",
+        }
+        if exact:
+            delete_ids.append(doc_id)
+        else:
+            review.append(entry)
+
+    if review:
+        return _result(
+            "review_required",
+            (
+                f"{len(review)} record(s) match only after word-sorting "
+                "(reworded title); group is ambiguous, human review required."
+            ),
+            [],
+            review,
+        )
+
+    if not delete_ids:
+        return _result(
+            "blocked",
+            "No other live record shares this title — there is no duplicate to delete.",
+            [],
+            [],
+        )
+
+    return _result(
+        "safe_replace",
+        (
+            f"{len(delete_ids)} record(s) share the exact same title and are "
+            "duplicates of the surviving record."
+        ),
+        delete_ids,
+        [],
+    )
 
 
 def find_near_duplicates(

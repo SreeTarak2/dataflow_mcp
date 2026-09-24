@@ -296,6 +296,19 @@ The backfill prompt ADDS/UPDATES these:
 
 ## Migration Safety
 
+### Duplicate Cleanup (replace_contest)
+When a re-structured record was INSERTED as a new document instead of updating
+the old one (different source/title than the old upsert key), clean it up with
+`replace_contest(new_record_id, dry_run)` in the audit tools:
+
+1. Preview: `replace_contest("<new_id>")` → verdict + `would_delete` list
+2. Execute: `replace_contest("<new_id>", dry_run=false)` → archives every
+   exact-title duplicate into `Contests_archived`, then removes them
+3. Undo: `restore_contest("<archived_id>")` restores the original doc
+
+Only exact same-title duplicates are deleted; reworded titles return
+`review_required` and need a human decision.
+
 ### Atomic Updates
 - Each patch is applied with `$set` operator
 - Existing data not in patch is untouched

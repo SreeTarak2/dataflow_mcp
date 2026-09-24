@@ -1,12 +1,12 @@
-"""Duplicate audit & discrepancy flagging MCP tools."""
+"""Duplicate audit, safe replacement, and discrepancy flagging MCP tools."""
 
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from dataflow_mcp.core import mcp, logger, check_rate_limit, update_metrics
-from tools.dedup_gate import build_title_index, source_name_of
+from tools.dedup_gate import build_title_index, classify_replacement, normalize_title
 
 # Discrepancy flags live in the raw DB cluster (temporary/audit purposes).
 FLAGGED_COLLECTION = "flagged_discrepancies"
@@ -71,6 +71,248 @@ def find_duplicate_contests(min_live: int = 2) -> dict:
 
     except Exception as e:
         logger.error(f"Error in find_duplicate_contests: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def replace_contest(
+    new_record_id: str,
+    collection_name: str = "Contests",
+    dry_run: bool = True,
+) -> dict:
+    """
+    Safely delete old duplicates that share the SAME TITLE with a new record.
+
+    Use this after a schema migration / re-structuring created a new document
+    for a contest that already exists under the old schema. The tool refuses
+    to delete anything unless a guard classifies the group as a safe
+    replacement:
+
+      1. Every other LIVE record sharing the new record's normalized title
+         must have the EXACT same title (case/punctuation/whitespace
+         insensitive, same word order). Reworded titles → verdict
+         "review_required", nothing is deleted.
+      2. If no other live record shares the title → "blocked" (there is no
+         duplicate to delete).
+      3. On a live run, EVERY duplicate is first snapshotted into
+         "<collection>_archived" (full document + archivedAt + replacedBy),
+         and only then removed. If archiving is incomplete, NOTHING is
+         deleted.
+
+    Restore anytime with `restore_contest(archive_id, collection_name)`.
+
+    Args:
+        new_record_id: ObjectId (string) of the NEW record to keep.
+        collection_name: Collection to operate on (default "Contests").
+        dry_run: When true (default), only reports what WOULD be deleted.
+
+    Returns:
+        Verdict, reason, and the ids archived/deleted (empty on dry_run or
+        any non-safe verdict).
+    """
+    client_id = "replace_contest"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        from bson import ObjectId
+
+        from config.mongodb import db
+
+        try:
+            new_oid = ObjectId(new_record_id)
+        except Exception:
+            return {
+                "success": False,
+                "error": "Invalid new_record_id — must be a 24-character MongoDB ObjectId",
+            }
+
+        collection = db[collection_name]
+        survivor = collection.find_one({"_id": new_oid})
+        if not survivor:
+            return {
+                "success": False,
+                "error": f"Record {new_record_id} not found in {collection_name}",
+            }
+
+        # Guard: classify the title group (pure function, same normalization
+        # as the ingestion dedup gate and find_duplicate_contests).
+        title_index = build_title_index(collection)
+        norm = normalize_title(survivor.get("title"))
+        candidates = title_index.get(norm, [])
+        verdict = classify_replacement(survivor, candidates, target_id=new_record_id)
+
+        if verdict["verdict"] != "safe_replace":
+            logger.warning(
+                f"replace_contest blocked ({verdict['verdict']}) for "
+                f"{new_record_id}: {verdict['reason']}"
+            )
+            return {
+                "success": False,
+                "verdict": verdict["verdict"],
+                "reason": verdict["reason"],
+                "review": verdict["review"],
+                "archived_ids": [],
+                "deleted": [],
+                "message": (
+                    "Dry run — nothing was deleted."
+                    if dry_run
+                    else "Nothing was deleted."
+                ),
+            }
+
+        delete_ids = verdict["delete_ids"]
+
+        if dry_run:
+            return {
+                "success": True,
+                "verdict": "safe_replace",
+                "dry_run": True,
+                "kept_id": new_record_id,
+                "would_delete": delete_ids,
+                "review": [],
+                "message": (
+                    "Dry run only. Re-run with dry_run=false to archive and "
+                    "delete these exact-title duplicates."
+                ),
+            }
+
+        # Live run — snapshot EVERY duplicate before deleting ANY.
+        now = datetime.now(timezone.utc).isoformat()
+        archive = db[f"{collection_name}_archived"]
+        archived_ids: List[str] = []
+        for dup_id in delete_ids:
+            old = collection.find_one({"_id": ObjectId(dup_id)})
+            if not old:
+                continue  # vanished since the index was built; will abort below
+            snapshot = {
+                "_id": old["_id"],
+                "archivedAt": now,
+                "archivedFromCollection": collection_name,
+                "replacedBy": new_record_id,
+                "reason": "replace_contest: exact-title duplicate",
+                "originalDocument": old,
+            }
+            archive.replace_one({"_id": old["_id"]}, snapshot, upsert=True)
+            archived_ids.append(dup_id)
+
+        if len(archived_ids) != len(delete_ids):
+            logger.error(
+                f"replace_contest aborted for {new_record_id}: archived "
+                f"{len(archived_ids)}/{len(delete_ids)} — nothing deleted"
+            )
+            return {
+                "success": False,
+                "verdict": "safe_replace",
+                "error": "Archiving incomplete — nothing was deleted.",
+                "archived_ids": archived_ids,
+                "deleted": [],
+            }
+
+        # All duplicates safely archived — now remove them.
+        deleted: List[Dict[str, Any]] = []
+        for dup_id in delete_ids:
+            result = collection.delete_one({"_id": ObjectId(dup_id)})
+            deleted.append(
+                {
+                    "_id": dup_id,
+                    "deleted": result.deleted_count == 1,
+                    "restorable": True,
+                }
+            )
+
+        update_metrics(True)
+        logger.info(
+            f"replace_contest: kept {new_record_id}, archived+deleted "
+            f"{len(archived_ids)} duplicate(s) from {collection_name}"
+        )
+        return {
+            "success": True,
+            "verdict": "safe_replace",
+            "dry_run": False,
+            "kept_id": new_record_id,
+            "archived_ids": archived_ids,
+            "deleted": deleted,
+            "archive_collection": f"{collection_name}_archived",
+            "message": (
+                f"Archived {len(archived_ids)} duplicate(s) to "
+                f"{collection_name}_archived, then removed them from "
+                f"{collection_name}. Restore anytime with restore_contest."
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in replace_contest: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def restore_contest(archive_id: str, collection_name: str = "Contests") -> dict:
+    """
+    Undo a replace_contest deletion: put an archived document back.
+
+    Copies the snapshot from "<collection>_archived" back into the live
+    collection under its ORIGINAL _id, then removes the archive entry.
+
+    Args:
+        archive_id: ObjectId (string) of the archived document (same as the
+            original document's _id).
+        collection_name: Live collection to restore into (default "Contests").
+
+    Returns:
+        Dictionary with the restored document's id and title.
+    """
+    client_id = "restore_contest"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        from bson import ObjectId
+
+        from config.mongodb import db
+
+        try:
+            oid = ObjectId(archive_id)
+        except Exception:
+            return {
+                "success": False,
+                "error": "Invalid archive_id — must be a 24-character MongoDB ObjectId",
+            }
+
+        archive = db[f"{collection_name}_archived"]
+        snapshot = archive.find_one({"_id": oid})
+        if not snapshot:
+            return {
+                "success": False,
+                "error": f"No archived document {archive_id} in {collection_name}_archived",
+            }
+
+        doc = snapshot.get("originalDocument")
+        if not isinstance(doc, dict) or "_id" not in doc:
+            return {
+                "success": False,
+                "error": "Archive snapshot has no restorable originalDocument",
+            }
+
+        collection = db[collection_name]
+        collection.replace_one({"_id": oid}, doc, upsert=True)
+        archive.delete_one({"_id": oid})
+
+        update_metrics(True)
+        logger.info(f"restore_contest: restored {archive_id} into {collection_name}")
+        return {
+            "success": True,
+            "restored_id": archive_id,
+            "title": doc.get("title"),
+            "message": f"Document restored into {collection_name} under its original _id.",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in restore_contest: {e}")
         update_metrics(False)
         return {"success": False, "error": str(e)}
 
