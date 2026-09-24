@@ -54,7 +54,7 @@ SCOPE MAPPING (apply in order):
 1. If `location` object already exists with a valid scope → keep it, do NOT overwrite. Only fill missing sub-fields.
 2. Else if old `audience.location` is null/empty/missing → scope "unknown", display null, mapEligible false
 3. Else if value is NON-GEOGRAPHICAL junk (Category 1 below) → scope "unknown", display null, mapEligible false, move junk to tags[] if not already present
-4. Else if `audience.mode` == "online" AND old location is "Worldwide"/"Global"/"Online" → scope "online", display "Online", precision "online", mapEligible false
+4. Else if `audience.mode` == "online" AND old location is "Worldwide"/"Global"/"Online" AND the record has NO physical anchor (no venue/city/host country/final-exhibition info anywhere) → scope "online", display "Online", precision "online", mapEligible false. If a physical anchor exists, keep it via rules 6-8 instead — online submissions do NOT erase the venue. NEVER overwrite an existing city/country/region scope with "online"
 5. Else if old location == "Worldwide" or "Global" → scope "worldwide", display "Worldwide", precision "worldwide", mapEligible false
 6. Else if old location is a continent/region ("Africa","Europe","Asia","South Asia","North America","Latin America","Middle East & North Africa","Arab Region") → scope "region", region=that value, display=that value, precision "region", mapEligible true
 7. Else if old location contains a comma (city+country, e.g. "Ahmedabad, India" or "Cambridge, MA, USA") → scope "city", city=city part, countries=[{name:country, code:ISO}], display=original string, precision "city", mapEligible true
@@ -73,18 +73,21 @@ CATEGORY REFERENCE (from v3.2, now maps to structured):
 B. PARTICIPATION GEOGRAPHY (who can join) → top-level `participationGeography`
 --------------------------------------------------
 participationGeography: {
-  scope: "worldwide" | "countries" | "region" | "unknown",
-  allowedCountries: [{ name: string, code: string }],
-  allowedRegions: [string],
+  scope: "worldwide" | "countries" | "country" | "region" | "unknown", // country = exactly one allowed country; countries = 2+
+  allowedCountries: [{ name: string, code: string }],   // shaped objects ONLY — never plain strings
+  allowedRegions: [string],                              // canonical region names ONLY (see vocabulary below)
   restrictedCountries: [{ name: string, code: string }],
   eligibilitySummary: string | null
 }
 
 RULES:
-- Do NOT assume worldwide just because mode is online.
+- Do NOT assume worldwide just because mode is online. Conversely, online mode must NEVER be used to derive any geography — venue and eligibility are independent.
 - Derive from `audience.eligibilityLabel` + `audience.eligibilityDetail` + old location when it was actually a participation restriction.
 - If eligibilityLabel says "Open worldwide" / "Open to everyone" / no restriction found → scope "worldwide", allowedCountries []
-- If eligibilityLabel mentions specific countries/regions (e.g. "Open to Indian students", "For African startups") → scope "countries" or "region", populate allowedCountries/allowedRegions with canonical+ISO, eligibilitySummary = eligibilityLabel
+- If eligibilityLabel mentions one country → scope "country"; 2+ countries → "countries"; a named multi-country region → "region"
+- If eligibilityLabel mentions specific countries/regions (e.g. "Open to Indian students", "For African startups") → populate allowedCountries/allowedRegions with canonical+ISO, eligibilitySummary = eligibilityLabel
+- NON-EMPTY RULE: scope "countries"/"country"/"region" MUST have at least one non-empty allowed list. If you cannot populate any list from the source text, use scope "unknown" — a restricted scope with empty lists makes the record invisible to every location filter.
+- CANONICAL REGION VOCABULARY for allowedRegions (use exactly these): Africa; Northern/Western/Middle/Eastern/Southern Africa; Sub-Saharan Africa; Americas; North America; Latin America; Central America; Caribbean; South America; Asia; Central/Eastern/South-eastern/Southern/Western Asia; Asia-Pacific; Europe; Eastern/Northern/Southern/Western Europe; European Union; Oceania; Australia and New Zealand; MENA; Middle East; Arab Region; UK & Ireland. Never put a country name, city, or organizer name in allowedRegions; use a state name only when eligibility is explicitly state-restricted.
 - If eligibility geography is unclear or contest already has participationGeography with valid scope → keep existing or set scope "unknown"
 - Never infer restrictions from organizer country.
 
@@ -104,6 +107,14 @@ Old doc:
 {
   "location": { "display": "Online", "scope": "online", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "online", "mapEligible": false },
   "participationGeography": { "scope": "worldwide", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": null }
+}
+
+Old doc:
+{ "audience": { "location": "Tokyo, Japan", "mode": "online", "eligibilityLabel": "Open to photographers worldwide" } }
+→ Patch:
+{
+  "location": { "display": "Tokyo, Japan", "scope": "city", "countries": [{ "name": "Japan", "code": "JP" }], "region": null, "city": "Tokyo", "venue": null, "coordinates": null, "precision": "city", "mapEligible": true },
+  "participationGeography": { "scope": "worldwide", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": "Open to photographers worldwide" }
 }
 
 Old doc:

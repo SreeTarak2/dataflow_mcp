@@ -759,14 +759,27 @@ Do not output mapEligible. It is backend-derived from location.scope.
 Never include mapEligible in your output — the backend computes it from scope.
 
 participationGeography.scope:
-"worldwide" | "countries" | "region" | "unknown"
+"worldwide" | "countries" | "country" | "region" | "unknown"
+("country" = exactly one allowed country; "countries" = two or more.)
 
 Rules:
 - worldwide only when explicitly stated or clearly supported by authoritative
   rules;
-- online does not automatically mean worldwide;
+- online does not automatically mean worldwide, and never infer ANY geography
+  from the mode — venue and eligibility are independent;
 - do not infer eligibility from organizer country;
-- use canonical country names and ISO alpha-2 codes;
+- use canonical country names and ISO alpha-2 codes (shaped objects
+  { name, code } — never plain strings);
+- allowedRegions uses ONLY canonical region names: Africa;
+  Northern/Western/Middle/Eastern/Southern Africa; Sub-Saharan Africa;
+  Americas; North America; Latin America; Central America; Caribbean;
+  South America; Asia; Central/Eastern/South-eastern/Southern/Western Asia;
+  Asia-Pacific; Europe; Eastern/Northern/Southern/Western Europe;
+  European Union; Oceania; Australia and New Zealand; MENA; Middle East;
+  Arab Region; UK & Ireland. Never a country name, city, or organizer name.
+- NON-EMPTY RULE: scope "countries"/"country"/"region" MUST have at least one
+  non-empty allowed list; otherwise use "unknown" — restricted scope with
+  empty lists is invisible to every location filter;
 - unknown when geographic eligibility is unclear.
 
 ==================================================

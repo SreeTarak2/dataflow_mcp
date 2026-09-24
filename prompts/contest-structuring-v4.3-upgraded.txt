@@ -746,17 +746,28 @@ PARTICIPATION GEOGRAPHY RULES
 ==================================================
 
 participationGeography.scope allowed values:
-"worldwide" | "countries" | "region" | "unknown"
+"worldwide" | "countries" | "country" | "region" | "unknown"
+("country" = exactly one allowed country; "countries" = two or more.)
 
 Rules:
 - "worldwide" only when explicitly stated or when reliable rules clearly
   indicate no geographic restriction.
-- Do not assume worldwide because the contest is online.
+- Do not assume worldwide because the contest is online. Do not infer ANY
+  geography from the mode — eligibility and venue are independent.
 - Do not infer eligibility from organizer country.
 - If eligibility geography is unclear, use "unknown".
 - allowedCountries and restrictedCountries must use canonical names and
-  ISO alpha-2 codes.
-- allowedRegions must contain only explicit geographic regions.
+  ISO alpha-2 codes (shaped objects { name, code } — never plain strings).
+- allowedRegions must use ONLY canonical region names from this vocabulary:
+  Africa; Northern/Western/Middle/Eastern/Southern Africa; Sub-Saharan Africa;
+  Americas; North America; Latin America; Central America; Caribbean;
+  South America; Asia; Central/Eastern/South-eastern/Southern/Western Asia;
+  Asia-Pacific; Europe; Eastern/Northern/Southern/Western Europe;
+  European Union; Oceania; Australia and New Zealand; MENA; Middle East;
+  Arab Region; UK & Ireland. Never a country name, city, or organizer name.
+- NON-EMPTY RULE: scope "countries"/"country"/"region" REQUIRES at least one
+  non-empty allowed list. If the source names none, use "unknown" — a
+  restricted scope with empty lists is invisible to every location filter.
 - eligibilitySummary is a concise factual summary or null.
 
 Example:

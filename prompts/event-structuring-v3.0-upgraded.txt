@@ -669,8 +669,10 @@ participationGeography: {
   restrictedCountries: [{ name: string, code: string }],
   eligibilitySummary: string | null
 }
-- Worldwide = no restriction found OR explicitly global. Do NOT assume worldwide because online.
+- Worldwide = no restriction found OR explicitly global. Do NOT assume worldwide because online, and never infer ANY geography from the mode — venue and eligibility are independent.
 - Never infer restrictions from organizer country. Unknown when unclear.
+- NON-EMPTY RULE: scope "countries"/"country"/"region" MUST have at least one non-empty allowed list; otherwise use "unknown" — restricted scope with empty lists is invisible to every location filter.
+- allowedRegions uses ONLY canonical region names: Africa; Northern/Western/Middle/Eastern/Southern Africa; Sub-Saharan Africa; Americas; North America; Latin America; Central America; Caribbean; South America; Asia; Central/Eastern/South-eastern/Southern/Western Asia; Asia-Pacific; Europe; Eastern/Northern/Southern/Western Europe; European Union; Oceania; Australia and New Zealand; MENA; Middle East; Arab Region; UK & Ireland. Never a country name, city, or organizer name.
 
 Example: Online event open only to India → location.scope="online", participationGeography.scope="countries", allowedCountries=[{name:"India",code:"IN"}]
 
