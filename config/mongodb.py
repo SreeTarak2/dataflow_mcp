@@ -11,9 +11,24 @@ logger = logging.getLogger(__name__)
 # Configuration — Primary (ContestHopperDb)
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "dataflow")
-MONGO_TIMEOUT = int(os.getenv("MONGO_TIMEOUT", "5000"))
+
+# Timeouts are DECOUPLED on purpose:
+#   serverSelection = how long to hunt for a suitable server (must stay short)
+#   socketTimeout   = how long a single operation may hold the socket (real
+#                     aggregations/structuring writes exceed 5s — a tight value
+#                     kills sockets mid-process and forces reconnect+re-auth)
+#   connectTimeout  = TCP connect only
+MONGO_SERVER_SELECTION_TIMEOUT = int(
+    os.getenv("MONGO_SERVER_SELECTION_TIMEOUT", os.getenv("MONGO_TIMEOUT", "10000")))
+MONGO_SOCKET_TIMEOUT = int(os.getenv("MONGO_SOCKET_TIMEOUT", "120000"))
+MONGO_CONNECT_TIMEOUT = int(os.getenv("MONGO_CONNECT_TIMEOUT", "10000"))
 MONGO_POOL_SIZE = int(os.getenv("MONGO_POOL_SIZE", "10"))
-MONGO_MAX_IDLE_TIME = int(os.getenv("MONGO_MAX_IDLE_TIME", "45000"))
+# pymongo requires maxIdleTimeMS > 0 (no "never" sentinel), so use 24h:
+# connections stay warm for the life of an MCP session instead of being culled
+# after 45s. Atlas authenticates every new connection (SCRAM handshake), so
+# idle-culling turns each bursty tool call into a re-authentication storm.
+# Pool is bounded by maxPoolSize anyway.
+MONGO_MAX_IDLE_TIME = int(os.getenv("MONGO_MAX_IDLE_TIME", "86400000"))
 
 # Configuration — Raw Data (CHRawdata, separate cluster)
 RAW_MONGO_URI = os.getenv("RAW_MONGO_URI")
@@ -32,16 +47,17 @@ if not RAW_MONGO_URI:
 def _build_connection_options() -> dict:
     """Build standard connection options dict (reusable across connections)."""
     opts = {
-        "serverSelectionTimeoutMS": MONGO_TIMEOUT,
-        "socketTimeoutMS": MONGO_TIMEOUT,
-        "connectTimeoutMS": MONGO_TIMEOUT,
-        "maxPoolSize": MONGO_POOL_SIZE,
-        "minPoolSize": 2,
-        "maxIdleTimeMS": MONGO_MAX_IDLE_TIME,
-        "retryWrites": True,
-        "w": "majority",
-        "journal": True,
-    }
+            "serverSelectionTimeoutMS": MONGO_SERVER_SELECTION_TIMEOUT,
+            "socketTimeoutMS": MONGO_SOCKET_TIMEOUT,
+            "connectTimeoutMS": MONGO_CONNECT_TIMEOUT,
+            "maxPoolSize": MONGO_POOL_SIZE,
+            "minPoolSize": 2,
+            "maxIdleTimeMS": MONGO_MAX_IDLE_TIME,
+            "retryWrites": True,
+            "retryReads": True,
+            "w": "majority",
+            "journal": True,
+        }
     if os.getenv("MONGO_USE_TLS", "false").lower() == "true":
         opts["tls"] = True
         opts["tlsAllowInvalidCertificates"] = (
