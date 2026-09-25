@@ -45,16 +45,43 @@ location: {
 
 RULES:
 - Use `audience.location` (old string) + `audience.mode` to derive `location`. Do NOT invent city/venue/coordinates.
-- `display` priority: City+Country > Country > Region > Online > Worldwide > Unknown
+- `display` priority: City+Country > Country > Region > Worldwide > Unknown
 - ISO codes: USA→US, UK→GB, U.S.A.→US, etc. Use canonical names (United States, United Kingdom).
 - Coordinates MUST be null in backfill output. Never hallucinate lat/lng.
 - `mapEligible`: true only for city/country/region/multi_location. Worldwide/online/unknown → false.
+
+⚠️ `location.display` IS A PLACE, NEVER A MODE (hard rule — regression guard):
+- NEVER write "Online", "Virtual", "Remote", "Fully online", "Online only",
+  "Online event", "Hybrid", or any other participation-mode word into
+  location.display, location.region, location.city, location.venue,
+  location.countries, or (legacy) audience.location.
+- "Online" is not a location. It answers HOW, not WHERE. Writing it into a
+  location field creates a phantom "Online" chip in the Location filter and a
+  duplicate "Online" row on the card (the Mode row already shows it). This
+  exact mistake already shipped once — do not repeat it.
+- Online-ness is expressed ONLY by:
+    audience.mode = "online"
+    location.scope = "online"   (+ location.precision = "online")
+- So an online-only contest with no verified physical anchor gets:
+    location.display = "Worldwide", location.scope = "online",
+    location.precision = "online", countries = [], region = null, city = null
+  ("Worldwide" is the true geographic reach of a globally open virtual contest;
+  scope keeps the online signal for the map, which must stay pin-free.)
+- If the OLD value being migrated is itself a mode word ("Online", "Virtual",
+  "Remote", "Online Event", …) → treat it as a mode signal, NOT a place: set
+  audience.mode = "online" and derive the real scope (usually "worldwide").
+  NEVER copy the mode word through into display.
+- Same for hybrid: scope = "hybrid", but display is the real venue/city, or
+  "Worldwide" when no physical anchor is verified — never the word "Hybrid".
+- FINAL SELF-CHECK before output: if location.display matches
+  /^(online|virtual|remote|fully online|online only|online event|hybrid)/i
+  → replace it with the verified place, or "Worldwide" if none exists.
 
 SCOPE MAPPING (apply in order):
 1. If `location` object already exists with a valid scope → keep it, do NOT overwrite. Only fill missing sub-fields.
 2. Else if old `audience.location` is null/empty/missing → scope "unknown", display null, mapEligible false
 3. Else if value is NON-GEOGRAPHICAL junk (Category 1 below) → scope "unknown", display null, mapEligible false, move junk to tags[] if not already present
-4. Else if `audience.mode` == "online" AND old location is "Worldwide"/"Global"/"Online" AND the record has NO physical anchor (no venue/city/host country/final-exhibition info anywhere) → scope "online", display "Online", precision "online", mapEligible false. If a physical anchor exists, keep it via rules 6-8 instead — online submissions do NOT erase the venue. NEVER overwrite an existing city/country/region scope with "online"
+4. Else if `audience.mode` == "online" AND old location is "Worldwide"/"Global"/"Online"/"Virtual"/"Remote" AND the record has NO physical anchor (no venue/city/host country/final-exhibition info anywhere) → scope "online", display "Worldwide", precision "online", mapEligible false. Set audience.mode "online" if it is not already. If a physical anchor exists, keep it via rules 6-8 instead — online submissions do NOT erase the venue. NEVER overwrite an existing city/country/region scope with "online", and NEVER use a mode word as display (see the PLACE-not-MODE rule above)
 5. Else if old location == "Worldwide" or "Global" → scope "worldwide", display "Worldwide", precision "worldwide", mapEligible false
 6. Else if old location is a continent/region ("Africa","Europe","Asia","South Asia","North America","Latin America","Middle East & North Africa","Arab Region") → scope "region", region=that value, display=that value, precision "region", mapEligible true
 7. Else if old location contains a comma (city+country, e.g. "Ahmedabad, India" or "Cambridge, MA, USA") → scope "city", city=city part, countries=[{name:country, code:ISO}], display=original string, precision "city", mapEligible true
@@ -105,9 +132,21 @@ Old doc:
 { "audience": { "location": "Worldwide", "mode": "online" } }
 → Patch:
 {
-  "location": { "display": "Online", "scope": "online", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "online", "mapEligible": false },
+  "location": { "display": "Worldwide", "scope": "online", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "online", "mapEligible": false },
   "participationGeography": { "scope": "worldwide", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": null }
 }
+(NOTE: display is "Worldwide" — NOT the word "Online", which is a mode.)
+
+Old doc (legacy mode leaked into the location string — clean it up):
+{ "audience": { "location": "Online", "mode": "online", "eligibilityLabel": "Open to all photographers" } }
+→ Patch:
+{
+  "audience": { "location": null, "eligibilityLabel": "Open to all photographers", "eligibilityDetail": "Open to all photographers worldwide", "primarySkillLevel": "open" },
+  "skillLevelSource": "explicit",
+  "location": { "display": "Worldwide", "scope": "online", "countries": [], "region": null, "city": null, "venue": null, "coordinates": null, "precision": "online", "mapEligible": false },
+  "participationGeography": { "scope": "worldwide", "allowedCountries": [], "allowedRegions": [], "restrictedCountries": [], "eligibilitySummary": "Open to all photographers" }
+}
+(NOTE: the mode word never survives as a location value; null it out and set audience.mode.)
 
 Old doc:
 { "audience": { "location": "Tokyo, Japan", "mode": "online", "eligibilityLabel": "Open to photographers worldwide" } }
@@ -423,10 +462,72 @@ NOTE: `audience.location` is DEPRECATED — do NOT write it. Write `location` + 
 If old `audience.location` has junk, clear it via `audience.location: null` and add to top-level location/participationGeography + tags.
 
 ==================================================
+MANDATORY COMPLETENESS CHECKLIST (run BEFORE you emit the patch)
+==================================================
+
+“Output only what needs changing” is NOT permission to leave a field empty.
+These SEVEN checks are part of every backfill pass. For each one, inspect the
+input doc and, when the field is missing / null / empty / stale, it MUST appear
+in your output patch. Skipping a check is an incomplete backfill.
+
+If a field is missing but the source data genuinely has nothing to derive it
+from, still emit the key with null (or the documented fallback) so the record is
+marked as considered. Do NOT silently omit it.
+
+  [ ] 1. audience.eligibilityLabel
+         REQUIRED (string, ≤150 chars). Present? Humanize it if it reads like
+         policy language. Missing? DERIVE one from the title, description,
+         category, tags, and any eligibility/age/region signal in the doc —
+         e.g. "Open to photographers worldwide", "For African startups",
+         "Open to Indian students". Only emit null when there is truly no
+         audience signal anywhere in the document.
+  [ ] 2. audience.eligibilityDetail
+         REQUIRED (string, ≤500 chars). One sentence restating the label with
+         the critical constraint spelled out. Missing? Derive from the same
+         signals. Emit it whenever it is null/empty.
+  [ ] 3. audience.primarySkillLevel
+         REQUIRED enum: beginner | intermediate | advanced | open.
+         Missing? Infer from the existing audience.skillLevels / eligibility
+         wording / competition level. If all three skillLevels are present and
+         nothing restricts experience → "open". Otherwise pick the single most
+         accurate level. Do NOT omit the key.
+  [ ] 4. skillLevelSource
+         REQUIRED enum, mirrors primarySkillLevel's origin:
+         explicit | inferred | default. Emit "explicit" when the source text
+         states the level, "inferred" when you derived it, "default" when you
+         fell back to "open".
+  [ ] 5. location
+         REQUIRED object (all keys). If the doc has no `location` object, or
+         `location.scope` is null/unknown while `audience.location` has a
+         value → migrate per LOCATION INTELLIGENCE BACKFILL above. If it
+         already has a valid scope → omit. display is a PLACE, never a MODE.
+  [ ] 6. participationGeography
+         REQUIRED object. If missing, or scope is "unknown" while eligibility
+         text names a country/region, populate it per section B. Respect the
+         NON-EMPTY RULE: a restricted scope MUST carry a non-empty allowed
+         list, otherwise use "unknown".
+  [ ] 7. descriptionDetailed
+         REQUIRED (400–700 chars) when missing, shorter than 300 chars, or
+         clearly stale. Also emit the short `description` when it fails the
+         description self-check (too long / too short / contains prize, fee,
+         deadline, location, eligibility, or organizer name).
+
+Additionally emit whenever missing (secondary completeness):
+  - prize.prizeSummary (when the doc has prize data but no summary)
+  - entry.feeConfidence (when entry exists and confidence is absent)
+
+SELF-AUDIT: before emitting, walk the checklist again against your own patch.
+Every box that applied MUST have a corresponding key in the output. A patch that
+omits eligibility / skill / location / participationGeography while the doc is
+missing them is WRONG even if it is valid JSON.
+
+==================================================
 OUTPUT CONSTRAINTS
 ==================================================
-- Output ONLY the fields that need changing
-- If a field is already correct (e.g. prizeSummary already exists
+- Output ONLY the fields that need changing — but the MANDATORY COMPLETENESS
+  CHECKLIST above always forces a field into the output when it is missing,
+  stale, or null. "Unchanged" means correct-and-present, not absent.
+- If a field is already correct and present (e.g. prizeSummary already exists
   and is valid) → omit it from the output
 - If `location` already has valid scope → omit location from output
 - If no changes are needed at all → output empty object: {}
@@ -434,6 +535,9 @@ OUTPUT CONSTRAINTS
 - Keep description strings ≤ 100 characters
 - Keep all other output strings ≤ 200 characters
 - Use null when information is missing and cannot be derived
+- NEVER emit a participation-mode word ("Online", "Virtual", "Remote",
+  "Hybrid", …) as a location value — see the PLACE-not-MODE rule. This is the
+  single most common backfill regression.
 
 ==================================================
 EXAMPLE

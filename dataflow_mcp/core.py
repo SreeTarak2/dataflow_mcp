@@ -94,6 +94,85 @@ def load_prompt_text(prompt_name: str) -> str:
     return prompt_path.read_text(encoding="utf-8")
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Location hygiene — a participation MODE is never a PLACE
+# ─────────────────────────────────────────────────────────────────────────
+#
+# "Online" answers HOW, not WHERE. When a mode word lands in a location field
+# it produces a phantom "Online" chip in the Location filter and a duplicate
+# "Online" row on the card (the Mode row already shows it), and it hides the
+# record from the real geographic filters. The prompts now forbid it; this
+# guard makes it impossible for a prompt-drifted model response to persist,
+# because the MCP writes docs straight to Mongo and bypasses the backend
+# model's own pre-save normalizer.
+
+_MODE_LIKE_LOCATION_RE = re.compile(
+    r"^(?:online|virtual|remote|fully[\s\-_]?online|online[\s\-_]?only|"
+    r"online[\s\-_]?event|webinar|web[\s\-_]?based|hybrid|on[\s\-_]?demand|"
+    r"anywhere)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_mode_like_location(value: Any) -> bool:
+    """True when a supposed place is actually a participation mode.
+
+    A comma means the value has the "City, Country" shape of a real place
+    ("Online Valley Rd, India"), so only comma-free values are treated as
+    modes. That keeps the guard from rewriting genuine addresses.
+    """
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip()
+    if not candidate or "," in candidate:
+        return False
+    return bool(_MODE_LIKE_LOCATION_RE.match(candidate))
+
+
+def scrub_mode_like_location(
+    location: Any,
+    warnings: Optional[List[str]] = None,
+    label: str = "location",
+) -> Any:
+    """Remove participation-mode words from a structured location object.
+
+    ``display`` falls back to "Worldwide" (the true reach of a globally open
+    virtual record) and the online signal is preserved in ``scope`` /
+    ``precision`` so the map stays pin-free. Other place fields are nulled.
+
+    Returns the (possibly mutated) location dict, or the input unchanged when
+    it is not a dict.
+    """
+    if not isinstance(location, dict):
+        return location
+
+    for key in ("region", "city", "venue"):
+        value = location.get(key)
+        if _is_mode_like_location(value):
+            location[key] = None
+            if warnings is not None:
+                warnings.append(
+                    f"{label}.{key} '{value}' is a participation mode, not a place; set to null"
+                )
+
+    display = location.get("display")
+    if _is_mode_like_location(display):
+        location["display"] = "Worldwide"
+        scope = location.get("scope")
+        if scope in (None, "unknown", "online"):
+            location["scope"] = "online"
+            if location.get("precision") in (None, "unknown", "online"):
+                location["precision"] = "online"
+            location["mapEligible"] = False
+        if warnings is not None:
+            warnings.append(
+                f"{label}.display '{display}' is a participation mode, not a place; "
+                "rewritten to 'Worldwide' (online signal kept in scope)"
+            )
+
+    return location
+
+
 def _json_safe(value: Any) -> Any:
     """Convert MongoDB and datetime values into JSON-safe values."""
     if isinstance(value, dict):
@@ -482,7 +561,19 @@ def _build_normalized_record(
             if constraints_field:
                 audience_field["constraints"] = constraints_field
         if audience.get("location"):
-            audience_field["location"] = audience["location"]
+            legacy_location = audience["location"]
+            if _is_mode_like_location(legacy_location):
+                # A mode word must never survive as a place in the deprecated
+                # geography field — the Mode row already shows it, and keeping
+                # it mints a phantom "Online" Location-filter chip.
+                logger.warning(
+                    "Contest '%s': dropped mode-like audience.location '%s' "
+                    "(participation mode, not a place)",
+                    title,
+                    legacy_location,
+                )
+            else:
+                audience_field["location"] = legacy_location
         if audience.get("mode"):
             audience_field["mode"] = audience["mode"]
         if audience_field:
@@ -491,6 +582,10 @@ def _build_normalized_record(
     # location intelligence v4.0 — structured occurrence geography (cards/map source of truth)
     location = record.get("location")
     if isinstance(location, dict) and location:
+        loc_warnings: List[str] = []
+        location = scrub_mode_like_location(copy.deepcopy(location), warnings=loc_warnings)
+        for warning in loc_warnings:
+            logger.warning("Contest '%s': %s", title, warning)
         loc_field: Dict[str, Any] = {}
         if location.get("display") is not None:
             loc_field["display"] = location["display"]
@@ -780,6 +875,26 @@ def _build_normalized_event(
     if isinstance(venue, dict) and venue.get("mode") not in (None, *EVENT_VENUE_MODES):
         warnings.append(f"venue.mode '{venue['mode']}' is invalid; set to null")
         venue["mode"] = None
+
+    # Location hygiene — a participation mode is never a place. venue.mode may
+    # legitimately be "online", but the word must never leak into the location
+    # block (phantom "Online" Location-filter chip + duplicate card row).
+    event_location = normalized.get("location")
+    if isinstance(event_location, dict):
+        scrub_mode_like_location(event_location, warnings=warnings, label="location")
+
+    event_audience = normalized.get("audience")
+    if isinstance(event_audience, dict) and _is_mode_like_location(
+        event_audience.get("location")
+    ):
+        bad_place = event_audience["location"]
+        event_audience["location"] = None
+        if isinstance(venue, dict) and venue.get("mode") is None:
+            venue["mode"] = "online"
+        warnings.append(
+            f"audience.location '{bad_place}' is a participation mode, not a place; "
+            "set to null and resolved venue.mode='online'"
+        )
 
     insights = normalized.get("eventInsights")
     if isinstance(insights, dict):

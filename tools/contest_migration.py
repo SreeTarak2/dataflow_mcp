@@ -15,7 +15,8 @@ Patch Validation Layer (v2.0):
 import json
 import logging
 import os
-from typing import Dict, Any, List, Set, Optional
+import re
+from typing import Dict, Any, List, Set, Optional, Tuple
 from datetime import datetime
 from bson.objectid import ObjectId
 from config.mongodb import db
@@ -54,6 +55,21 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     "audience.eligibilityDetail",
     "audience.primarySkillLevel",
     "audience.skillLevelSource",
+    # audience.skillLevels (the ARRAY) was missing from this whitelist until
+    # 2026-09-25. The backfill prompt asks for skill levels and the stored docs
+    # carry the array, so the model emitted it — the whitelist rejected the
+    # field, the rejection failed the WHOLE patch, and nothing was written.
+    # That is why eligibility/skill backfills "produced nothing".
+    "audience.skillLevels",
+    "audience.constraints",
+    "audience.constraints.participantType",
+    "audience.constraints.academicStatus",
+    "audience.constraints.teamSize",
+    "audience.constraints.teamSize.min",
+    "audience.constraints.teamSize.max",
+    "audience.constraints.graduationAfter",
+    "audience.constraints.organizationFoundedAfter",
+    "audience.age",
     "audience.location",
     "audience.mode",
     "audience.age.min",
@@ -95,17 +111,40 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     "link",
 }
 
+# CH Taxonomy v2 (2026-09) — "CH Subcategories for Main categories".
+# These are the ONLY category values a patch may write. Kept in sync with the
+# platform's taxonomyRegistry.CANONICAL_CATEGORIES and the structuring prompts.
+#
+# Was the v1 list (Creative Arts / Technology & AI / Business & Innovation /
+# Open / Multidisciplinary) until 2026-09-25: any patch that wrote a CURRENT
+# canonical name failed this enum check, so category backfills were rejected.
 CANONICAL_CATEGORIES: Set[str] = {
-    "Creative Arts",
-    "Technology & AI",
+    "Creative Arts & Design",
+    "AI & Technology",
+    "Engineering & Innovation",
     "Science & Research",
-    "Business & Innovation",
+    "Business & Entrepreneurship",
     "Writing & Media",
     "Environment & Sustainability",
     "Education & Learning",
     "Social Impact & Leadership",
-    "Open / Multidisciplinary",
+    "Open & Multidisciplinary",
 }
+
+# CH Taxonomy v1 names still present on un-backfilled documents. A patch that
+# echoes one of these must NOT be rejected (rejecting voids the whole patch and
+# is how eligibility/skill fields went missing), but it is flagged as a warning
+# so the value gets converged to v2 rather than persisted.
+LEGACY_CATEGORY_ALIASES: Dict[str, str] = {
+    "Creative Arts": "Creative Arts & Design",
+    "Technology & AI": "AI & Technology",
+    "Business & Innovation": "Business & Entrepreneurship",
+    "Open / Multidisciplinary": "Open & Multidisciplinary",
+    "Food & Cooking": "Open & Multidisciplinary",  # retired 2026-09
+}
+
+# What the enum check accepts: v2 canonical U legacy spellings (flagged).
+ACCEPTED_CATEGORIES: Set[str] = CANONICAL_CATEGORIES | set(LEGACY_CATEGORY_ALIASES)
 
 VALID_SKILL_LEVELS: Set[str] = {
     "beginner",
@@ -154,6 +193,33 @@ VALID_LOCATION_PRECISIONS: Set[str] = {
     "unknown",
 }
 
+# ── Mode-like location guard (2026-09-25) ──────────────────────────────
+# 'Online' (and the virtual/remote family) is a MODE, not a place. The
+# backfill AI mirrored it into location — which produced a phantom "Online"
+# chip in the platform's Location filter and a duplicate "Online" row on the
+# contest card. Prompt wording alone does not hold (models drift), so the
+# value is normalised deterministically on the way into the DB.
+#
+# virtual-only contest ⇒ location.display "Worldwide", scope/precision
+# "online", mapEligible false; the mode itself lives in audience.mode.
+MODE_LIKE_LOCATION_RE = re.compile(
+    r"^(online|virtual|remote|fully[\s_-]?online|online[\s_-]?only|online[\s_-]?event)\b",
+    re.IGNORECASE,
+)
+LOCATION_MODE_FALLBACK = "Worldwide"
+
+# Paths inside a patch that must never hold a mode-like value.
+LOCATION_DISPLAY_PATHS: Tuple[str, ...] = (
+    "location.display",
+    "location.region",
+    "location.city",
+)
+
+
+def is_mode_like_location(value: Any) -> bool:
+    """True when a location string is really a participation mode."""
+    return isinstance(value, str) and bool(MODE_LIKE_LOCATION_RE.match(value.strip()))
+
 VALID_PARTICIPATION_SCOPES: Set[str] = {
     "worldwide",
     "countries",
@@ -170,23 +236,38 @@ VALID_TYPES: Set[str] = {
     "challenge",
 }
 
-# Category → subcategory mapping for consistency checks
+# Category → allowed subcategory mapping for consistency checks.
+# Mirrors the platform's SUBCATEGORIES_BY_CATEGORY (taxonomyRegistry.js) —
+# v2 names only, since v1 categories are aliases resolved above.
+_CREATIVE_ARTS_SUBS: Set[str] = {
+    "Photography",
+    "Illustration & Visual Art",
+    "Graphic Design",
+    "Fashion Design",
+    "Architecture & Urban Design",
+}
+_ENGINEERING_SUBS: Set[str] = {
+    "Robotics & Autonomous Systems",
+    "Aerospace, Drones & Space",
+    "Hardware, Embedded & IoT",
+    "Automotive, EV & Formula",
+    "Manufacturing, 3D Printing & CAD",
+    "Product Engineering",
+    "Engineering Design",
+}
+
 CATEGORY_TO_SUBCATEGORIES: Dict[str, Set[str]] = {
-    "Creative Arts": {
-        "Photography",
-        "Illustration & Visual Art",
-        "Graphic Design",
-        "Fashion Design",
-        "Architecture & Urban Design",
-    },
-    "Technology & AI": {
+    "Creative Arts & Design": _CREATIVE_ARTS_SUBS,
+    "AI & Technology": {
         "Software Development",
         "AI & Machine Learning",
+        "Robotics & Autonomous Systems",
     },
+    "Engineering & Innovation": _ENGINEERING_SUBS,
     "Science & Research": {
         "Physical & Space Sciences",
     },
-    "Business & Innovation": {
+    "Business & Entrepreneurship": {
         "Entrepreneurship & Startups",
     },
     "Writing & Media": {
@@ -202,13 +283,20 @@ CATEGORY_TO_SUBCATEGORIES: Dict[str, Set[str]] = {
     },
     "Education & Learning": {
         "Teaching & Curriculum",
+        "Spelling & Vocabulary",
     },
     "Social Impact & Leadership": {
         "Community & Equity",
         "Youth Leadership",
     },
-    "Open / Multidisciplinary": set(),  # no subcategories
+    "Open & Multidisciplinary": set(),  # no subcategories
 }
+
+# v1 category spellings resolve to the same allowed subcategory sets, so the
+# cross-field check still runs on documents that have not been renamed yet.
+for _legacy_name, _canonical_name in LEGACY_CATEGORY_ALIASES.items():
+    if _canonical_name in CATEGORY_TO_SUBCATEGORIES:
+        CATEGORY_TO_SUBCATEGORIES.setdefault(_legacy_name, CATEGORY_TO_SUBCATEGORIES[_canonical_name])
 
 
 # ============================================================
@@ -359,6 +447,41 @@ class PatchValidator:
         return None
 
     @staticmethod
+    def _check_dict(value: Any, field_name: str) -> Optional[str]:
+        """Check a value is a valid object."""
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            return f"{field_name}: expected an object, got {type(value).__name__}"
+        return None
+
+    @staticmethod
+    def _check_skill_levels(value: Any, field_name: str) -> Optional[str]:
+        """Check audience.skillLevels is null or a non-empty list of valid levels.
+
+        An empty list would silently wipe "who is this for" without being a
+        destructive *write* (the value isn't null), so it is rejected here.
+        """
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return f"{field_name}: expected a list, got {type(value).__name__}"
+        if not value:
+            return (
+                f"{field_name}: empty list — use null to clear, or supply at least "
+                f"one of {', '.join(sorted(VALID_SKILL_LEVELS))}"
+            )
+        for item in value:
+            if not isinstance(item, str):
+                return f"{field_name}: entries must be strings, got {type(item).__name__}"
+            if item not in VALID_SKILL_LEVELS:
+                return (
+                    f"{field_name}: '{item}' is not valid. "
+                    f"Must be one of: {', '.join(sorted(VALID_SKILL_LEVELS))}"
+                )
+        return None
+
+    @staticmethod
     def check_schema_compliance(patch: Dict[str, Any]) -> PatchValidationResult:
         """
         Verification 2: Validate types, enums, and formats.
@@ -414,9 +537,37 @@ class PatchValidator:
             "audience.primarySkillLevel": lambda v: PatchValidator._check_enum(
                 v, VALID_SKILL_LEVELS, "audience.primarySkillLevel"
             ),
+            "audience.skillLevels": lambda v: PatchValidator._check_skill_levels(
+                v, "audience.skillLevels"
+            ),
             "audience.skillLevelSource": lambda v: PatchValidator._check_enum(
                 v, VALID_SKILL_LEVEL_SOURCES, "audience.skillLevelSource"
             ),
+            "audience.constraints": lambda v: PatchValidator._check_dict(
+                v, "audience.constraints"
+            ),
+            "audience.constraints.participantType": lambda v: PatchValidator._check_list(
+                v, "audience.constraints.participantType"
+            ),
+            "audience.constraints.academicStatus": lambda v: PatchValidator._check_string(
+                v, "audience.constraints.academicStatus", max_len=100
+            ),
+            "audience.constraints.teamSize": lambda v: PatchValidator._check_dict(
+                v, "audience.constraints.teamSize"
+            ),
+            "audience.constraints.teamSize.min": lambda v: PatchValidator._check_number(
+                v, "audience.constraints.teamSize.min"
+            ),
+            "audience.constraints.teamSize.max": lambda v: PatchValidator._check_number(
+                v, "audience.constraints.teamSize.max"
+            ),
+            "audience.constraints.graduationAfter": lambda v: PatchValidator._check_number(
+                v, "audience.constraints.graduationAfter"
+            ),
+            "audience.constraints.organizationFoundedAfter": lambda v: PatchValidator._check_number(
+                v, "audience.constraints.organizationFoundedAfter"
+            ),
+            "audience.age": lambda v: PatchValidator._check_dict(v, "audience.age"),
             "audience.location": lambda v: PatchValidator._check_string(
                 v, "audience.location", max_len=100
             ),
@@ -470,8 +621,8 @@ class PatchValidator:
             "participationGeography.eligibilitySummary": lambda v: PatchValidator._check_string(
                 v, "participationGeography.eligibilitySummary", max_len=300
             ),
-            # Category
-            "category": lambda v: PatchValidator._check_enum(v, CANONICAL_CATEGORIES, "category"),
+            # Category — v2 canonical U v1 legacy (legacy is flagged, not rejected)
+            "category": lambda v: PatchValidator._check_enum(v, ACCEPTED_CATEGORIES, "category"),
             "subCategory": lambda v: PatchValidator._check_string(v, "subCategory", max_len=100),
             # Tags
             "tags": lambda v: PatchValidator._check_list(v, "tags"),
@@ -621,6 +772,16 @@ class PatchValidator:
                     f"{', '.join(sorted(allowed_subs)) if allowed_subs else 'none (no subcategories)'}"
                 )
 
+        # --- Check 3b: CH Taxonomy v1 category spelling ---
+        # Accepted (so the patch still applies) but flagged: v1 names are
+        # pre-rename leftovers and must converge on the v2 values.
+        if category and category in LEGACY_CATEGORY_ALIASES:
+            result.warnings.append(
+                f"Category '{category}' is a CH Taxonomy v1 name — the current "
+                f"canonical value is '{LEGACY_CATEGORY_ALIASES[category]}'. "
+                f"Rewrite it to the v2 name (taxonomyRegistry.js is the source of truth)."
+            )
+
         # --- Check 4: feeConfidence='confirmed' with isFree=true (no fee) ---
         fee_confidence = values.get("entry.feeConfidence")
         if fee_confidence == "confirmed" and is_free is not True:
@@ -645,6 +806,110 @@ class PatchValidator:
             )
 
         return result
+
+    # -------------------------------------------------------
+    # Normalisation + per-field isolation
+    # -------------------------------------------------------
+
+    @staticmethod
+    def normalize_patch(
+        patch: Dict[str, Any],
+        existing_doc: Optional[Dict[str, Any]] = None,
+        force: bool = False,
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        """Return ``(clean_patch, warnings)``.
+
+        ``clean_patch`` is a flat dot-notation patch containing ONLY fields that
+        may actually be written.
+
+        Why this exists (2026-09-25): validation used to be all-or-nothing, so a
+        single unknown or mis-nested field failed the ENTIRE patch and an
+        otherwise-correct backfill wrote nothing. That is exactly why
+        eligibility / skill-level / location fields stayed missing on old data:
+
+          - ``audience.skillLevels`` was absent from the whitelist, yet the
+            backfill prompt asks for skill levels and the stored docs carry the
+            array, so the model emitted it → whole patch rejected.
+          - ``skillLevelSource`` was documented at the TOP level in the backfill
+            prompt's output schema, but only ``audience.skillLevelSource``
+            exists → whole patch rejected.
+          - a ``null`` for an already-populated field failed the destructive
+            check → whole patch rejected.
+          - a mode-like location ('Online') was written straight through.
+
+        Now each field is handled independently:
+          - a top-level ``skillLevelSource`` is hoisted under ``audience``
+          - mode-like location values are normalised (never written as a place)
+          - non-whitelisted fields are dropped with a warning — nothing outside
+            the whitelist is ever written, but one stray key can no longer void
+            the patch
+          - schema-invalid and destructive-null fields are dropped likewise
+
+        Patch-level problems that change meaning rather than one field (e.g. a
+        restricted ``participationGeography`` with empty allowed lists) are
+        still ERRORS and still block the write.
+        """
+        warnings: List[str] = []
+        expanded = PatchValidator._expand_dotted_keys(patch)
+
+        # 1. Hoist the prompt's historical top-level skillLevelSource.
+        if "skillLevelSource" in expanded:
+            value = expanded.pop("skillLevelSource")
+            if "audience.skillLevelSource" not in expanded:
+                expanded["audience.skillLevelSource"] = value
+                warnings.append(
+                    "Normalised: top-level 'skillLevelSource' → "
+                    "'audience.skillLevelSource' (that is where the platform reads it)."
+                )
+
+        # 2. A participation MODE is never a PLACE.
+        for path in LOCATION_DISPLAY_PATHS:
+            if not is_mode_like_location(expanded.get(path)):
+                continue
+            original = expanded[path]
+            replacement = LOCATION_MODE_FALLBACK if path == "location.display" else None
+            expanded[path] = replacement
+            warnings.append(
+                f"Normalised: '{path}' held a participation mode ('{original}') — "
+                f"a mode is not a location. Wrote {replacement!r} instead; the mode "
+                f"belongs in audience.mode (scope/precision 'online')."
+            )
+        if is_mode_like_location(expanded.get("audience.location")):
+            original = expanded["audience.location"]
+            expanded["audience.location"] = None
+            warnings.append(
+                f"Normalised: 'audience.location' held a participation mode "
+                f"('{original}') — cleared to null. Online-ness lives in "
+                f"audience.mode + location.scope, never in a geographic field."
+            )
+
+        # 3. Keep only fields that may be written, checking one at a time.
+        clean: Dict[str, Any] = {}
+        for key, value in expanded.items():
+            if key not in ALLOWED_PATCH_FIELDS:
+                warnings.append(
+                    f"Dropped '{key}': not in the patch field whitelist "
+                    f"({len(ALLOWED_PATCH_FIELDS)} approved fields). "
+                    f"The remaining fields were still applied."
+                )
+                continue
+
+            schema_result = PatchValidator.check_schema_compliance({key: value})
+            if schema_result.errors:
+                warnings.append(f"Dropped '{key}': {schema_result.errors[0]}")
+                continue
+
+            if not force:
+                destructive_result = PatchValidator.check_destructive_write(
+                    {key: value}, existing_doc
+                )
+                if destructive_result.errors:
+                    warnings.append(f"Dropped '{key}': {destructive_result.errors[0]}")
+                    continue
+
+            clean[key] = value
+
+        return clean, warnings
 
     # -------------------------------------------------------
     # Run all verifications
@@ -726,6 +991,8 @@ class ContestMigration:
             # not the MCP backfill. MCP handles: prizeSummary, feeConfidence,
             # descriptionDetailed, eligibilityLabel, location intelligence, etc.
             # v4.0: 500+ older/older-older docs lack location/participationGeography
+            # A null check (`field: None`) matches BOTH missing and null in
+            # MongoDB, which is what "not filled in yet" means for these fields.
             filter_dict = filter_query or {}
             default_filter = {
                 "$or": [
@@ -734,8 +1001,25 @@ class ContestMigration:
                     {"subCategory": {"$exists": False}},
                     {"location": {"$exists": False}},
                     {"location.scope": {"$exists": False}},
+                    {"location.display": None},
                     {"participationGeography": {"$exists": False}},
+                    # Audience / eligibility / skill levels — the fields the
+                    # backfill kept reporting as "missing". They were never part
+                    # of the selection filter, so contests lacking only these
+                    # were never handed to the model in the first place.
+                    {"audience.eligibilityLabel": None},
+                    {"audience.eligibilityDetail": None},
+                    {"audience.skillLevels": None},
+                    {"audience.primarySkillLevel": None},
+                    {"descriptionDetailed": None},
                     {"audience.location": {"$exists": True, "$type": "string"}},
+                    # Mode-like location that needs rewriting ('Online' is not a place)
+                    {
+                        "audience.location": {
+                            "$regex": "^(online|virtual|remote)",
+                            "$options": "i",
+                        }
+                    },
                 ]
             }
 
@@ -818,6 +1102,25 @@ class ContestMigration:
                 {"audience.location": {"$exists": True, "$type": "string"}}
             )
 
+            # Mode-like location — a MODE stored in a geographic field. Must be
+            # rewritten ('Online' → 'Worldwide'); see normalize_patch.
+            mode_like_audience_location = collection.count_documents(
+                {"audience.location": {"$regex": "^(online|virtual|remote)", "$options": "i"}}
+            )
+
+            # Audience / eligibility / skill levels (previously not reported at
+            # all, which is why the gap was invisible in the status output).
+            missing_eligibility_label = collection.count_documents(
+                {"audience.eligibilityLabel": None}
+            )
+            missing_skill_levels = collection.count_documents({"audience.skillLevels": None})
+            missing_primary_skill_level = collection.count_documents(
+                {"audience.primarySkillLevel": None}
+            )
+            missing_description_detailed = collection.count_documents(
+                {"descriptionDetailed": None}
+            )
+
             logger.info(
                 f"Migration status: {migrated}/{total_contests} migrated "
                 f"({100 * migrated / total_contests:.1f}%)"
@@ -836,6 +1139,11 @@ class ContestMigration:
                     "missing_location": missing_location,
                     "missing_participationGeography": missing_participation_geo,
                     "legacy_audience_location_string": legacy_audience_location,
+                    "mode_like_audience_location": mode_like_audience_location,
+                    "missing_eligibility_label": missing_eligibility_label,
+                    "missing_skill_levels": missing_skill_levels,
+                    "missing_primary_skill_level": missing_primary_skill_level,
+                    "missing_description_detailed": missing_description_detailed,
                 },
             }
 
@@ -909,10 +1217,35 @@ class ContestMigration:
                 logger.warning(f"Contest not found: {contest_id}")
                 return {"success": False, "error": "Contest not found"}
 
-            # --- Run all 4 verifications ---
-            validation = PatchValidator.validate_patch(
+            # --- Normalise + isolate per field ---
+            # Drops anything that may not be written (non-whitelisted, schema-
+            # invalid, destructive null) and normalises mode-like locations, so
+            # one stray field can no longer void the whole patch.
+            clean_patch, normalisation_warnings = PatchValidator.normalize_patch(
                 patch, existing_doc=existing_doc, force=force
             )
+
+            if not clean_patch:
+                logger.warning(
+                    f"Patch for contest {contest_id} had no writeable fields "
+                    f"({len(normalisation_warnings)} field(s) dropped)"
+                )
+                return {
+                    "success": False,
+                    "contest_id": contest_id,
+                    "error": "Patch contained no valid fields to update",
+                    "validation": {
+                        "passed": False,
+                        "errors": ["No writeable fields after normalisation"],
+                        "warnings": normalisation_warnings,
+                    },
+                }
+
+            # --- Run all 4 verifications on the CLEAN patch ---
+            validation = PatchValidator.validate_patch(
+                clean_patch, existing_doc=existing_doc, force=force
+            )
+            validation.warnings = normalisation_warnings + validation.warnings
 
             if not validation.passed:
                 logger.warning(
@@ -927,14 +1260,9 @@ class ContestMigration:
                 }
 
             # --- Build update operations ---
-            update_ops = {}
-
-            for key, value in patch.items():
-                if isinstance(value, dict):
-                    for nested_key, nested_value in value.items():
-                        update_ops[f"{key}.{nested_key}"] = nested_value
-                else:
-                    update_ops[key] = value
+            # clean_patch is already flat dot-notation (normalize_patch expanded
+            # it), so no second expansion pass is needed here.
+            update_ops = dict(clean_patch)
 
             if not update_ops:
                 logger.warning(f"Patch resulted in no update operations: {patch}")

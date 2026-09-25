@@ -727,10 +727,35 @@ location.display priority:
 1. City + Country
 2. Country
 3. Region
-4. Online
-5. Hybrid
-6. Worldwide
-7. Unknown
+4. Worldwide
+5. Unknown
+
+(mode words are NEVER candidates for display — see the PLACE-not-MODE rule
+below)
+
+location.display is a PLACE, never a MODE:
+- NEVER write "Online", "Virtual", "Remote", "Fully online", "Online only",
+  "Online event", "Hybrid", or any other participation-mode word into
+  location.display, location.region, location.city, location.venue,
+  location.countries, or (legacy) audience.location.
+- "Online" is not a location. It answers HOW, not WHERE, and writing it into a
+  location field creates a phantom "Online" chip in the Location filter and a
+  duplicate "Online" row on the card (the Mode row already shows it).
+- Online-ness is expressed ONLY by:
+    audience.mode = "online"
+    location.scope = "online"   (+ location.precision = "online")
+- An online-only hackathon with no verified physical anchor therefore has:
+    location.display = "Worldwide", location.scope = "online",
+    location.precision = "online", countries = [], region = null, city = null
+  ("Worldwide" is the true geographic reach of a globally open virtual
+  hackathon; scope keeps the online signal for the map, which must stay
+  pin-free.)
+- Same rule for hybrid: audience.mode = "hybrid", location.scope = "hybrid",
+  but display is the real venue/city, or "Worldwide" when no physical anchor is
+  verified — never the word "Hybrid".
+- Final self-check before output: if location.display is "Online", "Virtual",
+  "Remote", "Hybrid", or any of the variants above, replace it with the
+  verified place, or "Worldwide" if none exists.
 
 Hackathon-specific rules:
 - A hybrid hackathon may have an online build phase and physical finale.

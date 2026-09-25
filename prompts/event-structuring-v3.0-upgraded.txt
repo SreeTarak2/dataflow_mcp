@@ -654,8 +654,34 @@ location: {
   coordinates: null,                 // ALWAYS null from AI — backend geocodes deterministically
   precision: "venue" | "city" | "country" | "region" | "worldwide" | "online" | "unknown"
 }
-- display priority: City+Country > Country > Region > Online > Hybrid > Worldwide > Unknown
+- display priority: City+Country > Country > Region > Worldwide > Unknown
+  (mode words are NEVER candidates — see the PLACE-not-MODE rule below)
 - Use canonical country names + ISO codes. Never invent city/venue/country/coordinates.
+
+location.display is a PLACE, never a MODE:
+- NEVER write "Online", "Virtual", "Remote", "Fully online", "Online only",
+  "Online event", "Hybrid", or any other participation-mode word into
+  location.display, location.region, location.city, location.venue,
+  location.countries, or (legacy) audience.location.
+- "Online" is not a location. It answers HOW, not WHERE, and writing it into a
+  location field creates a phantom "Online" chip in the Location filter and a
+  duplicate "Online" row on the card (the Mode row already shows it).
+- Online-ness is expressed ONLY by:
+    venue.mode = "online"
+    location.scope = "online"   (+ location.precision = "online")
+- An online-only event with no verified physical anchor therefore has:
+    location.display = "Worldwide", location.scope = "online",
+    location.precision = "online", countries = [], region = null, city = null
+  ("Worldwide" is the true geographic reach of a globally open virtual event;
+  scope keeps the online signal for the map, which must stay pin-free.)
+- Same rule for hybrid: venue.mode = "hybrid", location.scope = "hybrid", but
+  display is the real venue/city, or "Worldwide" when no physical anchor is
+  verified — never the word "Hybrid".
+- Online attendance does not erase a verified physical location: keep the real
+  city/country in display and set venue.mode = "hybrid".
+- Final self-check before output: if location.display is "Online", "Virtual",
+  "Remote", "Hybrid", or any of the variants above, replace it with the
+  verified place, or "Worldwide" if none exists.
 - Do NOT geocode vague/ambiguous/inferred location. Keep coordinates null.
 - mapEligible is backend-derived (not output by AI).
 - Sync location with venue: venue.address.city/country/venueName → location.city/countries/venue/display when verified.
