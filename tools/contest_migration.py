@@ -23,6 +23,22 @@ from config.mongodb import db
 from config.security import MongoDBValidator, ValidationError
 from pymongo.errors import PyMongoError
 
+# Item 1: ONE set of canonical enums, shared with the write-time validator.
+# The local constants below re-export them for backward compatibility with
+# anything that imported them from this module.
+from tools.schema_validation import (
+    CANONICAL_REGIONS as CANONICAL_REGION_VOCABULARY,
+    VALID_FEE_CONFIDENCE,
+    VALID_LOCATION_PRECISIONS,
+    VALID_LOCATION_SCOPES,
+    VALID_MODES,
+    VALID_PARTICIPATION_SCOPES,
+    VALID_SKILL_LEVEL_SOURCES,
+    VALID_SKILL_LEVELS,
+    VALID_SOURCE_TYPES,
+    VALID_TYPES,
+)
+
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "Contests")
 
 logger = logging.getLogger(__name__)
@@ -102,6 +118,15 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     "timeline.submissionDeadlineUTC",
     "timeline.startDateUTC",
     "timeline.eventEndUTC",
+    "timeline.organizerTimeZone",
+    # Item 9: tiered fees — first-class tier block
+    "timeline.tiers",
+    # Item 10: edition lock block
+    "edition",
+    "edition.label",
+    "edition.ordinal",
+    "edition.cycleStart",
+    "edition.cycleEnd",
     # Image
     "image.primary.url",
     "image.alt",
@@ -109,6 +134,21 @@ ALLOWED_PATCH_FIELDS: Set[str] = {
     "type",
     # Link
     "link",
+    # v4.4 schema fields — a fully-restructured record must be writable.
+    # Without these, restructure patches silently dropped well-formed fields
+    # (the "AI missed fields" failure mode): the model emitted them, the
+    # whitelist rejected them, and the buried warning was easy to miss.
+    "flags",
+    "audienceScope",
+    "source",
+    "source.name",
+    "source.url",
+    "source.type",
+    "filterKeys",
+    "filterKeys.domain",
+    "filterKeys.format",
+    "filterKeys.medium",
+    "filterKeys.themes",
 }
 
 # CH Taxonomy v2 (2026-09) — "CH Subcategories for Main categories".
@@ -146,52 +186,8 @@ LEGACY_CATEGORY_ALIASES: Dict[str, str] = {
 # What the enum check accepts: v2 canonical U legacy spellings (flagged).
 ACCEPTED_CATEGORIES: Set[str] = CANONICAL_CATEGORIES | set(LEGACY_CATEGORY_ALIASES)
 
-VALID_SKILL_LEVELS: Set[str] = {
-    "beginner",
-    "intermediate",
-    "advanced",
-    "open",
-}
-
-VALID_SKILL_LEVEL_SOURCES: Set[str] = {
-    "explicit",
-    "inferred",
-    "default",
-}
-
-VALID_FEE_CONFIDENCE: Set[str] = {
-    "confirmed",
-    "extracted",
-    "unknown",
-}
-
-VALID_MODES: Set[str] = {
-    "online",
-    "offline",
-    "in-person",
-    "hybrid",
-}
-
-VALID_LOCATION_SCOPES: Set[str] = {
-    "city",
-    "country",
-    "region",
-    "worldwide",
-    "online",
-    "hybrid",
-    "multi_location",
-    "unknown",
-}
-
-VALID_LOCATION_PRECISIONS: Set[str] = {
-    "venue",
-    "city",
-    "country",
-    "region",
-    "worldwide",
-    "online",
-    "unknown",
-}
+# (VALID_SKILL_LEVELS, VALID_MODES, VALID_LOCATION_SCOPES, … are imported
+# from tools.schema_validation above — one canonical set for all write paths.)
 
 # ── Mode-like location guard (2026-09-25) ──────────────────────────────
 # 'Online' (and the virtual/remote family) is a MODE, not a place. The
@@ -220,76 +216,16 @@ def is_mode_like_location(value: Any) -> bool:
     """True when a location string is really a participation mode."""
     return isinstance(value, str) and bool(MODE_LIKE_LOCATION_RE.match(value.strip()))
 
-VALID_PARTICIPATION_SCOPES: Set[str] = {
-    "worldwide",
-    "countries",
-    "region",
-    "unknown",
-}
-
-VALID_TYPES: Set[str] = {
-    "contest",
-    "hackathon",
-    "grant",
-    "fellowship",
-    "award",
-    "challenge",
-}
-
 # Category → allowed subcategory mapping for consistency checks.
-# Mirrors the platform's SUBCATEGORIES_BY_CATEGORY (taxonomyRegistry.js) —
-# v2 names only, since v1 categories are aliases resolved above.
-_CREATIVE_ARTS_SUBS: Set[str] = {
-    "Photography",
-    "Illustration & Visual Art",
-    "Graphic Design",
-    "Fashion Design",
-    "Architecture & Urban Design",
-}
-_ENGINEERING_SUBS: Set[str] = {
-    "Robotics & Autonomous Systems",
-    "Aerospace, Drones & Space",
-    "Hardware, Embedded & IoT",
-    "Automotive, EV & Formula",
-    "Manufacturing, 3D Printing & CAD",
-    "Product Engineering",
-    "Engineering Design",
-}
+# Spec item 12: sourced from the canonical CH taxonomy (tools/taxonomy.py —
+# the client's "CH Subcategories for Main categories" document). The old
+# hardcoded compound values ("Robotics & Autonomous Systems",
+# "Illustration & Visual Art", …) are NOT canonical — they are aliases that
+# resolve or get flagged, never stored.
+from tools.taxonomy import SUBCATEGORIES_BY_CATEGORY as _TAXONOMY_SUBS
 
 CATEGORY_TO_SUBCATEGORIES: Dict[str, Set[str]] = {
-    "Creative Arts & Design": _CREATIVE_ARTS_SUBS,
-    "AI & Technology": {
-        "Software Development",
-        "AI & Machine Learning",
-        "Robotics & Autonomous Systems",
-    },
-    "Engineering & Innovation": _ENGINEERING_SUBS,
-    "Science & Research": {
-        "Physical & Space Sciences",
-    },
-    "Business & Entrepreneurship": {
-        "Entrepreneurship & Startups",
-    },
-    "Writing & Media": {
-        "Fiction & Creative Writing",
-        "Film & Video",
-        "Music & Audio",
-        "Journalism & Nonfiction",
-    },
-    "Environment & Sustainability": {
-        "Conservation & Ecology",
-        "Climate & Clean Energy",
-        "Sustainable Food & Agriculture",
-    },
-    "Education & Learning": {
-        "Teaching & Curriculum",
-        "Spelling & Vocabulary",
-    },
-    "Social Impact & Leadership": {
-        "Community & Equity",
-        "Youth Leadership",
-    },
-    "Open & Multidisciplinary": set(),  # no subcategories
+    category: set(subs) for category, subs in _TAXONOMY_SUBS.items()
 }
 
 # v1 category spellings resolve to the same allowed subcategory sets, so the
@@ -444,6 +380,88 @@ class PatchValidator:
             return None
         if not isinstance(value, list):
             return f"{field_name}: expected a list, got {type(value).__name__}"
+        return None
+
+    @staticmethod
+    def _check_flags(value: Any, field_name: str) -> Optional[str]:
+        """Check flags uses only the allowed flag vocabulary."""
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return f"{field_name}: expected a list, got {type(value).__name__}"
+        allowed = {"women", "hero", "broken-link", "all"}
+        for item in value:
+            if item not in allowed:
+                return (
+                    f"{field_name}: '{item}' is not valid. "
+                    f"Must be a subset of: {', '.join(sorted(allowed))}"
+                )
+        return None
+
+    @staticmethod
+    def _check_canonical_regions(value: Any, field_name: str) -> Optional[str]:
+        """Check allowedRegions uses ONLY canonical region names (item 1)."""
+        from tools.schema_validation import region_violation
+
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return f"{field_name}: expected a list, got {type(value).__name__}"
+        for i, item in enumerate(value):
+            violation = region_violation(item)
+            if violation is None:
+                continue
+            reason, expected = violation
+            return (
+                f"{field_name}[{i}]: {reason} — {item!r}. "
+                f"Use the canonical vocabulary ({expected})."
+            )
+        return None
+
+    @staticmethod
+    def _check_year_month(value: Any, field_name: str) -> Optional[str]:
+        """Check a value is a YYYY-MM string (edition cycle bounds)."""
+        if value is None:
+            return None
+        if not isinstance(value, str) or not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", value.strip()):
+            return f"{field_name}: expected YYYY-MM (e.g. '2026-10'), got {value!r}"
+        return None
+
+    @staticmethod
+    def _check_tiers(value: Any, field_name: str) -> Optional[str]:
+        """Check timeline.tiers entries follow the item-9 tier block."""
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return f"{field_name}: expected a list, got {type(value).__name__}"
+        for i, tier in enumerate(value):
+            if not isinstance(tier, dict):
+                return f"{field_name}[{i}]: expected an object, got {type(tier).__name__}"
+            tier_type = tier.get("type")
+            if tier_type is not None and tier_type not in {"early", "regular", "late", "final"}:
+                return (
+                    f"{field_name}[{i}].type: '{tier_type}' is not valid. "
+                    "Must be one of: early, regular, late, final"
+                )
+            deadline = tier.get("deadlineUTC")
+            if deadline is not None and (
+                not isinstance(deadline, str) or len(deadline) > 30
+            ):
+                return f"{field_name}[{i}].deadlineUTC: expected an ISO datetime string or null"
+            fee = tier.get("entryFee")
+            if fee is not None:
+                if not isinstance(fee, dict):
+                    return f"{field_name}[{i}].entryFee: expected an object or null"
+                amount = fee.get("amount")
+                if amount is not None and (
+                    isinstance(amount, bool) or not isinstance(amount, (int, float))
+                ):
+                    return f"{field_name}[{i}].entryFee.amount: expected a number, got {type(amount).__name__}"
+                currency = fee.get("currency")
+                if currency is not None and (
+                    not isinstance(currency, str) or len(currency) > 5
+                ):
+                    return f"{field_name}[{i}].entryFee.currency: expected an ISO currency code"
         return None
 
     @staticmethod
@@ -612,8 +630,8 @@ class PatchValidator:
             "participationGeography.allowedCountries": lambda v: PatchValidator._check_list(
                 v, "participationGeography.allowedCountries"
             ),
-            "participationGeography.allowedRegions": lambda v: PatchValidator._check_list(
-                v, "participationGeography.allowedRegions"
+            "participationGeography.allowedRegions": lambda v: (
+                PatchValidator._check_canonical_regions(v, "participationGeography.allowedRegions")
             ),
             "participationGeography.restrictedCountries": lambda v: PatchValidator._check_list(
                 v, "participationGeography.restrictedCountries"
@@ -630,6 +648,28 @@ class PatchValidator:
             "type": lambda v: PatchValidator._check_enum(v, VALID_TYPES, "type"),
             # Link
             "link": lambda v: PatchValidator._check_string(v, "link", max_len=1000),
+            # v4.4 fields (restructure path must be fully writable)
+            "flags": lambda v: PatchValidator._check_flags(v, "flags"),
+            "audienceScope": lambda v: (
+                None
+                if v is None
+                else (
+                    None
+                    if v in ("women", "all")
+                    else "audienceScope: expected 'women', 'all', or null"
+                )
+            ),
+            "source": lambda v: PatchValidator._check_dict(v, "source"),
+            "source.name": lambda v: PatchValidator._check_string(v, "source.name", max_len=200),
+            "source.url": lambda v: PatchValidator._check_string(v, "source.url", max_len=1000),
+            "source.type": lambda v: PatchValidator._check_enum(v, VALID_SOURCE_TYPES, "source.type"),
+            "filterKeys": lambda v: PatchValidator._check_dict(v, "filterKeys"),
+            "filterKeys.domain": lambda v: PatchValidator._check_string(
+                v, "filterKeys.domain", max_len=100
+            ),
+            "filterKeys.format": lambda v: PatchValidator._check_list(v, "filterKeys.format"),
+            "filterKeys.medium": lambda v: PatchValidator._check_list(v, "filterKeys.medium"),
+            "filterKeys.themes": lambda v: PatchValidator._check_list(v, "filterKeys.themes"),
             # Timeline
             "timeline.submissionDeadlineUTC": lambda v: PatchValidator._check_string(
                 v, "timeline.submissionDeadlineUTC", max_len=30
@@ -639,6 +679,31 @@ class PatchValidator:
             ),
             "timeline.eventEndUTC": lambda v: PatchValidator._check_string(
                 v, "timeline.eventEndUTC", max_len=30
+            ),
+            "timeline.organizerTimeZone": lambda v: PatchValidator._check_string(
+                v, "timeline.organizerTimeZone", max_len=60
+            ),
+            # Item 9: tiered fees
+            "timeline.tiers": lambda v: PatchValidator._check_tiers(v, "timeline.tiers"),
+            # Item 10: edition lock
+            "edition": lambda v: PatchValidator._check_dict(v, "edition"),
+            "edition.label": lambda v: PatchValidator._check_string(
+                v, "edition.label", max_len=60
+            ),
+            "edition.ordinal": lambda v: (
+                None
+                if v is None
+                else (
+                    None
+                    if isinstance(v, int) and not isinstance(v, bool)
+                    else "edition.ordinal: expected an integer or null"
+                )
+            ),
+            "edition.cycleStart": lambda v: PatchValidator._check_year_month(
+                v, "edition.cycleStart"
+            ),
+            "edition.cycleEnd": lambda v: PatchValidator._check_year_month(
+                v, "edition.cycleEnd"
             ),
             # Image
             "image.primary.url": lambda v: PatchValidator._check_string(
@@ -1210,6 +1275,12 @@ class ContestMigration:
                     "link": 1,
                     "timeline": 1,
                     "image": 1,
+                    # v4.4 fields — destructive-write protection must see the
+                    # current values of anything the whitelist now allows
+                    "flags": 1,
+                    "audienceScope": 1,
+                    "source": 1,
+                    "filterKeys": 1,
                 },
             )
 

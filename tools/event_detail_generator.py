@@ -27,7 +27,7 @@ from config.mongodb import db
 logger = logging.getLogger(__name__)
 
 EVENT_DETAILS_COLLECTION = "event_details"
-EVENTS_COLLECTION = "Events"
+EVENTS_COLLECTION = "events"
 
 
 class EventDetailGenerator:

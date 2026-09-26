@@ -49,12 +49,12 @@ metrics: Dict[str, Any] = {
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROMPTS_DIR = BASE_DIR / "prompts"
 DEFAULT_COLLECTION = os.getenv("COLLECTION_NAME", "Contests")
-EVENT_COLLECTION = os.getenv("EVENT_COLLECTION_NAME", "Events")
+EVENT_COLLECTION = os.getenv("EVENT_COLLECTION_NAME", "events")
 
 # Canonical prompt files — kept in sync with the Phase2 source-of-truth copies
 # (Phase2/*.txt). Note: hackathon-structuring-v2.0-upgraded.txt exists in
 # prompts/ but is not wired to any tool yet.
-PROMPT_CONTEST_STRUCTURING = "contest-structuring-v4.3-upgraded.txt"
+PROMPT_CONTEST_STRUCTURING = "contest-structuring-v4.4-upgraded.txt"
 PROMPT_CONTEST_DETAILS = "contest-details-v1.1-upgraded.txt"
 PROMPT_EVENTS = "event-structuring-v3.0-upgraded.txt"
 PROMPT_EVENT_DETAILS = "event-details-v3.0-upgraded.txt"
@@ -66,9 +66,11 @@ PROMPT_VALIDATION = "validation-v2.0-upgraded.txt"
 _PROMPT_ALIASES = {
     "contest-structuring-v4.0.txt": PROMPT_CONTEST_STRUCTURING,
     "contest-structuring-v4.2.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4.3-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
     "contest-structuring-v4_0-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
     "contest-structuring-v4_2-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
     "contest-structuring-v4_3-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
+    "contest-structuring-v4_4-upgraded.txt": PROMPT_CONTEST_STRUCTURING,
     "contest-details-v1.0.txt": "contest-details-v1.1-upgraded.txt",
     "Prompts-contest-details.txt": PROMPT_CONTEST_DETAILS,
     "Prompts-backfill.txt": PROMPT_BACKFILL,
@@ -261,116 +263,6 @@ def _derive_contest_status(contest: Dict[str, Any]) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Image / cover helpers
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def _infer_theme(contest: Dict[str, Any]) -> str:
-    """Infer a visual theme from contest fields with conservative fallback."""
-    tags = [str(tag).lower() for tag in contest.get("tags", []) if isinstance(tag, str)]
-    category = str(contest.get("category") or "").lower()
-    description = str(contest.get("description") or "").lower()
-    combined = " ".join(tags + [category, description])
-
-    if any(key in combined for key in ["human-rights", "rights", "equity", "justice"]):
-        return "Human Rights"
-    if any(key in combined for key in ["climate", "sustainability", "environment"]):
-        return "Sustainability"
-    if any(key in combined for key in ["ai", "technology", "hackathon", "innovation"]):
-        return "Technology"
-    if any(key in combined for key in ["education", "student", "learning", "scholarship"]):
-        return "Education"
-    if any(key in combined for key in ["startup", "entrepreneur", "pitch"]):
-        return "Entrepreneurship"
-    if any(key in combined for key in ["research", "science", "lab"]):
-        return "Research"
-    if any(key in combined for key in ["leadership", "community", "social-impact"]):
-        return "Leadership"
-    if any(key in combined for key in ["art", "design", "creative", "film", "music"]):
-        return "Creativity"
-    return "Innovation"
-
-
-def _build_cover_image_prompt(contest: Dict[str, Any]) -> str:
-    """Generate an image-generation prompt for a missing contest banner."""
-    title = _clean_text(contest.get("title"), "Untitled Opportunity")
-    source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
-    organizer = _clean_text(source.get("name"), "Organizer not specified")
-    category = _clean_text(
-        contest.get("category"),
-        "Open / Multidisciplinary",
-    )
-    description = _clean_text(contest.get("description"))
-
-    audience = contest.get("audience", {}) if isinstance(contest.get("audience"), dict) else {}
-    eligibility = _clean_text(audience.get("eligibilityLabel"), "Open to eligible applicants")
-
-    prize = contest.get("prize", {}) if isinstance(contest.get("prize"), dict) else {}
-    prize_summary = _clean_text(prize.get("prizeSummary"), "Benefits not specified")
-
-    theme = _infer_theme(contest)
-
-    return (
-        f"Create a premium wide landscape cover banner for '{title}'. "
-        f"The scene should visually represent {theme} through powerful symbolic imagery. "
-        f"Include visual cues for {category}, eligibility context ({eligibility}), "
-        f"and the organizer mission of {organizer}. "
-        f"Ground the composition in this contest context: {description}. "
-        f"Benefits cue: {prize_summary}. "
-        "Use a modern international editorial design language, cinematic lighting, rich details, "
-        "sophisticated composition, diverse representation where appropriate, professional negative "
-        "space for text overlays, high-end conference poster aesthetics, ultra sharp 8k detail, "
-        "website hero-banner quality, no watermarks, no logos, no stock-photo look, no clutter."
-    )
-
-
-def _build_broken_image_card(contest: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a compact, card-friendly contest summary for chatbot output."""
-    timeline = contest.get("timeline", {}) if isinstance(contest.get("timeline"), dict) else {}
-    audience = contest.get("audience", {}) if isinstance(contest.get("audience"), dict) else {}
-    prize = contest.get("prize", {}) if isinstance(contest.get("prize"), dict) else {}
-    image = contest.get("image", {}) if isinstance(contest.get("image"), dict) else {}
-    primary = image.get("primary", {}) if isinstance(image.get("primary"), dict) else {}
-
-    prize_text = _clean_text(prize.get("prizeSummary"), "Not specified")
-    if prize_text == "Not specified":
-        amount = _clean_text(prize.get("originalAmount"), "")
-        currency = _clean_text(prize.get("currency"), "")
-        if amount:
-            prize_text = f"{amount} {currency}".strip()
-
-    return {
-        "contest_id": contest.get("_id"),
-        "title": _clean_text(contest.get("title"), "Untitled Opportunity"),
-        "category": _clean_text(
-            contest.get("category"),
-            "Open / Multidisciplinary",
-        ),
-        "status": _derive_contest_status(contest),
-        "prize": prize_text,
-        "deadline": _format_deadline(timeline.get("submissionDeadlineUTC")),
-        "eligibility": _clean_text(audience.get("eligibilityLabel"), "Not specified"),
-        "image_url": _clean_text(primary.get("url"), "Not specified"),
-    }
-
-
-def _build_formatted_broken_image_card(card: Dict[str, Any], contest: Dict[str, Any]) -> str:
-    """Return the exact text block format requested for chatbot display."""
-    source = contest.get("source", {}) if isinstance(contest.get("source"), dict) else {}
-    source_name = _clean_text(source.get("name"), "Not specified")
-
-    return (
-        f"Title: {card.get('title', 'Untitled Opportunity')}\n"
-        f"Category: {card.get('category', 'Open / Multidisciplinary')}\n"
-        f"Status: {card.get('status', 'Unknown')}\n"
-        f"Prize: {card.get('prize', 'Not specified')}\n"
-        f"Deadline: {card.get('deadline', 'Not specified')}\n"
-        f"Eligibility: {card.get('eligibility', 'Not specified')}\n"
-        f"Link: {source_name}"
-    )
-
-
-# ─────────────────────────────────────────────────────────────────────────
 # Contest record normalisation (Prompts.txt v4.0 schema -> Contests doc)
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -444,8 +336,41 @@ def _build_normalized_record(
     # Simple string fields
     if "description" in record and record["description"]:
         normalized["description"] = record["description"]
-    if "category" in record and record["category"]:
-        normalized["category"] = record["category"]
+
+    # category + subCategory — canonical CH taxonomy enforcement (spec item 12).
+    # Ingestion-time mapping: legacy/scraper category spellings are converged;
+    # subCategory aliases are auto-mapped when unambiguous. Unmappable
+    # subCategory values are DROPPED (kept in feeNote-style audit? no — logged)
+    # rather than stored, per "never store invented taxonomy values".
+    if record.get("category"):
+        from tools.taxonomy import canonical_category as _canon_cat
+
+        canon = _canon_cat(record["category"])
+        normalized["category"] = canon or record["category"]
+    if record.get("subCategory"):
+        from tools.taxonomy import resolve_subcategory
+
+        resolved, status = resolve_subcategory(
+            normalized.get("category"), record["subCategory"]
+        )
+        if resolved:
+            if status != "canonical":
+                logger.info(
+                    "Contest '%s': subCategory '%s' → '%s' (%s)",
+                    title,
+                    record["subCategory"],
+                    resolved,
+                    status,
+                )
+            normalized["subCategory"] = resolved
+        else:
+            logger.warning(
+                "Contest '%s': dropped non-canonical subCategory '%s' (status=%s) — "
+                "call get_taxonomy() for the canonical list",
+                title,
+                record["subCategory"],
+                status,
+            )
 
     # source
     if isinstance(source_obj, dict):
@@ -625,7 +550,7 @@ def _build_normalized_record(
         if pg_field:
             normalized["participationGeography"] = pg_field
 
-    # timeline
+    # timeline — including the item-9 tier block when the model emits it
     timeline = record.get("timeline")
     if isinstance(timeline, dict):
         timeline_field: Dict[str, Any] = {}
@@ -637,8 +562,18 @@ def _build_normalized_record(
         ):
             if timeline.get(key):
                 timeline_field[key] = timeline[key]
+        tiers = timeline.get("tiers")
+        if isinstance(tiers, list) and tiers:
+            timeline_field["tiers"] = copy.deepcopy(tiers)
         if timeline_field:
             normalized["timeline"] = timeline_field
+
+    # edition — item 10: the machine-checkable TARGET IDENTITY LOCK.
+    # Only mapped when the model emits it (progressive adoption), but never
+    # dropped when present.
+    edition = record.get("edition")
+    if isinstance(edition, dict) and edition:
+        normalized["edition"] = copy.deepcopy(edition)
 
     # tags
     tags = record.get("tags", [])

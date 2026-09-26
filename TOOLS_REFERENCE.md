@@ -1113,18 +1113,383 @@ dataflow_mcp/
 ├── core.py            # FastMCP instance, rate limiter, metrics, prompt loading, normalization helpers
 ├── server.py          # tool registration + mcp.run()
 ├── tools/
-│   ├── health.py      # health_check, database_status
+│   ├── health.py      # health_check (includes MongoDB connectivity)
 │   ├── crud.py        # read_collection, get_document, create/update/delete_document
-│   ├── images.py      # contest banner pipeline (missing/broken images, cover prompts, URL verify)
-│   ├── migration.py   # get_migration_status, get_contests_for_migration, apply/bulk patches
+│   ├── migration.py   # get_migration_status, get_prompted_contests, apply/bulk patches
 │   ├── contests.py    # structuring + full generation + detail generation
 │   ├── events.py      # get_records_for_events, submit_structured_events, get_events, get_events_overview, get_events_for_detail_generation, submit_event_details, get_event_detail_status
-│   ├── raw_data.py    # get_raw_data_status, read_raw_collection, get_scraped_overview, process_raw_data
-│   ├── validation.py  # claim/submit validation, status, prompt
-│   └── audit.py       # find_duplicate_contests, replace_contest, restore_contest, flag_contest_discrepancy
+│   ├── raw_data.py    # get_scraped_overview, read_raw_collection, process_raw_data
+│   ├── validation.py  # claim/submit validation, status, get_workflow_prompt
+│   └── audit.py       # find_duplicate_contests, replace_contest, restore_contest, flag_contest_discrepancy, audit_records, get_stale_status_records, refresh_stale_statuses
 main.py                # thin entry point → dataflow_mcp.server
 ```
 
 Run with `python main.py`, `python -m dataflow_mcp.server`, or the installed
 `dataflow-mcp` console script. All 41 tools keep their exact names — no client
 changes needed.
+
+---
+
+# ⬆️ CustomMCP Server Upgrades (2026-09 spec)
+
+The 2026-09 upgrade spec (11 items) is implemented across the server. Item 4
+(connector session stability) is client-side and out of scope for this codebase.
+
+## 1️⃣2️⃣ Write-time enum & schema validation (spec item 1)
+
+Every contest write path can now enforce the canonical enums **before** data
+reaches MongoDB. The validator lives in `tools/schema_validation.py` — one
+shared set of vocabularies for `update_document`, `create_document`,
+`submit_structured_records`, `submit_full_generation`, and the migration patch
+validator.
+
+**`update_document` / `create_document`** accept `validate: true` (opt-in
+strict mode):
+
+```json
+Tool: update_document
+Parameters:
+  collection_name: "Contests"
+  document_id: "6aaea300cb599abddcca0f33"
+  update_json: "{\"location\": {\"scope\": \"onsite\"}}"
+  validate: true
+```
+
+```json
+{
+  "success": false,
+  "error": "Schema validation failed (1 error(s)) — nothing was written",
+  "validation": {
+    "error_count": 1,
+    "notice_count": 0,
+    "errors": [
+      {
+        "field": "location.scope",
+        "value": "onsite",
+        "reason": "not in canonical enum",
+        "severity": "error",
+        "expected": "one of: city, country, region, worldwide, online, hybrid, multi_location, unknown"
+      }
+    ],
+    "notices": []
+  }
+}
+```
+
+Enforced: `audience.mode`, `audience.skillLevels`, `audience.primarySkillLevel`,
+`audience.skillLevelSource`, `location.scope`, `location.precision`,
+`participationGeography.scope`, canonical `allowedRegions` (aliases like "EU"
+and sub-national units like "Oklahoma" are flagged with the canonical spelling
+in `expected`), restricted-scope-with-empty-lists, fee states, flags, tier
+types, and ISO date formats. Legacy categories are notices, not errors.
+
+**`submit_structured_records` / `submit_full_generation`** validate every
+record unconditionally — a record with enum violations is skipped and reported
+per-record (it is NOT stored).
+
+## 1️⃣3️⃣ `update_document` returns the updated document (spec item 2)
+
+```json
+{
+  "success": true,
+  "modified_count": 1,
+  "update_semantics": "deep merge (plain object expanded to dotted $set paths)",
+  "changes": { "audience": { "before": {"mode": "online"}, "after": {"mode": "hybrid"} } },
+  "document": { "_id": "6aaea...", "audience": {"mode": "hybrid", "eligibilityLabel": "Open to students"} }
+}
+```
+
+**Documented merge semantics:**
+- Plain object → **deep merge**: `{"audience": {"mode": "hybrid"}}` touches
+  only `audience.mode`; sibling sub-fields are preserved
+- Arrays and `null` → replace wholesale
+- Operators `$set` / `$unset` / `$push` / `$pull` → passed through to MongoDB
+- Unsupported operators → structured error listing the operator (never a
+  generic "Database error occurred")
+
+## 1️⃣4️⃣ `$unset` support (spec item 5)
+
+```json
+Tool: update_document
+Parameters:
+  update_json: "{\"$unset\": {\"timeline.eventEndUTC\": \"\"}}"
+```
+
+Removes the field entirely (absent ≠ null for downstream filters). Genuine DB
+errors now return `{error, error_code, details, operator_attempted}`.
+
+## 1️⃣5️⃣ Actionable detail warnings (spec item 3)
+
+`submit_contest_details` no longer wastes a submit cycle on readingTime:
+
+- **readingTime** is a non-blocking **notice** — the server computes the
+  correct value, stores it, and says so ("stored correctly, no resubmission
+  needed"). It never counts against `quality_score`.
+- **First-person checker** excludes "US"/"USA" country references and reports
+  style issues as notices with the exact rewrite guidance.
+- `validation.notices` / `validation.notice_count` appear in every response;
+  `quality_score` is driven by warnings only.
+
+## 1️⃣6️⃣ Discoverable pipeline prompts (spec item 6)
+
+```bash
+Tool: get_workflow_prompt                    # lists all stages
+Tool: get_workflow_prompt
+Parameters:
+  pipeline_stage: "structuring"              # | validation | detail_generation
+                                             # | full_generation | backfill | events
+```
+
+Returns the full prompt text plus the designed pipeline for that stage. The
+CRUD tool docstrings now route agents: **"When patching existing records,
+prefer `get_records_for_*` over raw `read_collection`."**
+
+## 1️⃣7️⃣ Server-side batch audit (spec item 7)
+
+```bash
+Tool: audit_records
+Parameters:
+  collection_name: "Contests"
+  ids_json: "[\"6aaea...\"]"        # optional; empty = whole collection
+  fields_json: ""                   # optional; default = fee/location/mode/skills/eligibility/geography/deadline
+```
+
+```json
+{
+  "success": true,
+  "audited": 120,
+  "clean": 113,
+  "with_issues": 7,
+  "records": [
+    { "id": "6aae...", "title": "SeaPerch Challenge", "missing": ["entry.fee.amount"], "empty": [] }
+  ],
+  "missing_field_counts": { "entry.fee.amount": 4, "audience.mode": 2 }
+}
+```
+
+Run after every batch — one call instead of N reads plus client-side joins.
+
+## 1️⃣8️⃣ Patch-then-flag flow (spec item 8)
+
+`flag_contest_discrepancy` now accepts structured evidence aliases
+(`scrapedValue`/`officialValue` are normalized to
+`currentValue`/`observedValue`) and a `resolution` parameter. The docstrings of
+`apply_migration_patch`, `update_document`, and the flag tool document the
+contract: **when you correct a scraped field, patch AND flag** so validation
+reports and DB state stay reconciled.
+
+## 1️⃣9️⃣ Tiered deadlines & fees (spec item 9)
+
+First-class tier block, validated and whitelisted:
+
+```json
+"timeline": {
+  "tiers": [
+    { "type": "early",   "deadlineUTC": "2026-09-30T23:59:59", "entryFee": { "amount": 10, "currency": "EUR" } },
+    { "type": "regular", "deadlineUTC": "2026-10-31T23:59:59", "entryFee": { "amount": 15, "currency": "EUR" } },
+    { "type": "final",   "deadlineUTC": null,                  "entryFee": { "amount": 120, "currency": "EUR" } }
+  ]
+}
+```
+
+- Structuring prompt **v4.4** (`contest-structuring-v4.4-upgraded.txt`) carries
+  the TIERED FEES RULES section; `_build_normalized_record` persists the block
+- `apply_migration_patch` accepts `timeline.tiers` (type enum + shape checks)
+- Migration of old `entryFees`/`entry`/`feeSummary` variants happens in the
+  next restructuring pass via this whitelist entry
+
+## 2️⃣0️⃣ Required edition block (spec item 10)
+
+```json
+"edition": {
+  "label": "2027",
+  "ordinal": 13,
+  "cycleStart": "2026-10",
+  "cycleEnd": "2027-04"
+}
+```
+
+- Prompt v4.4 EDITION LOCK RULES make the block required at structuring time;
+  dates outside the edition cycle must be treated as other-edition evidence
+- The write-time validator checks formats (YYYY-MM cycle bounds, integer
+  ordinal, label order) — the machine-checkable half of TARGET IDENTITY LOCK
+- Whitelisted for patches as `edition`, `edition.label`, `edition.ordinal`,
+  `edition.cycleStart`, `edition.cycleEnd`
+
+## 2️⃣1️⃣ Status freshness guard (spec item 11)
+
+```bash
+Tool: get_stale_status_records      # read-only: open/scheduled records past their deadline
+Tool: refresh_stale_statuses
+Parameters:
+  dry_run: true                     # default — preview first
+```
+
+`refresh_stale_statuses(dry_run=false)` flips past-due records to `"closed"`
+with `statusAutoClosed: true` + `statusCheckedAt` audit notes, so automated
+closes are always distinguishable from researched ones. Safe to re-run; the
+status filter in the update guard prevents double-writes.
+
+## Test coverage
+
+```
+tests/test_schema_validation.py   # spec items 1, 9, 10 — validator behavior
+tests/test_detail_warnings.py     # spec items 2, 3 — deep-merge + warning semantics
+```
+
+---
+
+# 🧹 Tool Consolidation (2026-09)
+
+Tool count reduced from 48 → **40** with zero functionality loss, plus the
+images pipeline removed (handled manually outside the server).
+
+## Merged tools
+
+| Removed tool | Replaced by | Notes |
+|---|---|---|
+| `get_raw_data_status` | `get_scraped_overview` | Its stats (records with missing critical fields) merged into the overview response as `records_with_missing_fields` |
+| `get_contests_for_migration` | `get_prompted_contests` | Call with `include_prompt=false` to get just the documents needing migration |
+| `get_validation_prompt` | `get_workflow_prompt("validation")` | One prompt-entry point for every pipeline stage |
+| `database_status` | `health_check` | MongoDB connectivity now reported under `health_check.mongodb` |
+
+## Removed tools (no replacement — workflow done manually)
+
+| Removed | What it did |
+|---|---|
+| `get_contests_missing_images` | List contests missing banner images |
+| `get_contests_with_broken_images` | List contests with unreachable image URLs |
+| `generate_cover_prompt_for_contest` | AI cover-banner prompt generation |
+| `verify_image_urls` | Batch URL status checking |
+
+Also: the `auto_image` parameter was removed from `process_raw_data` — it was
+accepted but never actually executed (dead parameter).
+
+**Tip for existing sessions:** if a saved prompt references a removed tool,
+the mappings in the table above are drop-in equivalents.
+
+---
+
+# 🔄 Restructure Path (fixing "AI missing fields" on old-schema records)
+
+**The problem this solves:** `get_records_for_structuring` pulls RAW scrapes
+from CHRawdata — there was no designed path for restructuring a record already
+in the DB. Agents improvised with raw CRUD, never saw the v4.4 checklist, and
+the patch whitelist silently dropped well-formed fields. Result: "why is the
+AI missing fields?"
+
+## 2️⃣2️⃣ **get_contest_for_restructuring**
+
+Fetches an EXISTING contest + the v4.4 structuring prompt + its specific field
+gaps in one call:
+
+```bash
+Tool: get_contest_for_restructuring
+Parameters:
+  contest_id: "6aaea300cb599abddcca0f33"   # preferred
+  # OR
+  title: "Fine Art Photography Awards"     # exact match, then unique fragment
+```
+
+Response contains:
+- `contest` — the existing document (fields NOT in `legacy_gaps` are presumed correct)
+- `prompt_text` — the full v4.4 structuring checklist
+- `legacy_gaps` — `{missing: [...], legacy: [...]}`: exactly what to research
+  (missing v4.4 fields) and what to clear (deprecated shapes like the
+  `audience.location` string, top-level `prizeSummary`/`feeConfidence`,
+  `entryFees` object, ad-hoc tier deadline keys)
+- `workflow` — the 6-step patch → flag → audit flow
+
+### Recommended restructure flow
+
+```
+get_contest_for_restructuring(contest_id=…)
+  → research gaps against the official source (web search)
+  → apply_migration_patch(contest_id, patch_json)        # only gap fields
+      (force=true ONLY when nulling a populated legacy field)
+  → flag_contest_discrepancy(…)                          # if a scraped value was corrected
+  → audit_records(ids_json=["<contest_id>"])             # must report clean
+```
+
+## Patch whitelist now covers the full v4.4 schema
+
+These fields were previously **silently dropped** from patches (buried warning,
+easy to miss) — a perfectly-restructured record could not be fully written:
+
+- `flags`, `audienceScope`
+- `source`, `source.name`, `source.url`, `source.type` (enum-checked)
+- `filterKeys`, `filterKeys.domain/format/medium/themes`
+- `timeline.organizerTimeZone`
+
+…on top of the earlier additions (`timeline.tiers`, `edition.*`). Schema
+checks were added for each: invalid `source.type`/`audienceScope`/`flags`
+values are rejected with the allowed vocabulary in the error.
+
+**Note for re-submitters:** the duplicate-title gate still applies to
+`submit_structured_records` — for records already in the DB, use the
+restructure flow above rather than resubmitting the full record.
+
+---
+
+# 🗂️ Canonical Category / Subcategory Taxonomy (spec item 12)
+
+**The problem this solves:** agents invented category names ("Robotics &
+Autonomous Systems", "Illustration & Visual Art") and arbitrary subcategories,
+producing a fragmented taxonomy that breaks filtering and dedup.
+
+## 2️⃣3️⃣ **get_taxonomy**
+
+Returns the canonical vocabulary the server accepts. Taxonomy is **code**
+(`tools/taxonomy.py`), sourced from the client's own category doc — it is never
+mutable through record writes.
+
+```bash
+Tool: get_taxonomy                    # all 10 categories + every subcategory
+Tool: get_taxonomy
+Parameters:
+  category: "Engineering & Innovation"  # one category's full subcategory list
+```
+
+Unknown category → structured error + hint to call `get_taxonomy()`.
+
+### The 10 canonical categories
+
+1. AI & Technology
+2. Engineering & Innovation
+3. Business & Entrepreneurship
+4. Science & Research
+5. Creative Arts & Design
+6. Writing & Media
+7. Environment & Sustainability
+8. Education & Learning
+9. Social Impact & Leadership
+10. Open & Multidisciplinary
+
+(`Engineering Design` IS canonical — the spec's item-12 example was a
+*specificity* misuse, not an invalid category.)
+
+### Resolution rules (applied on ingestion and on patch)
+
+| Incoming value | Result |
+| --- | --- |
+| Exact canonical category/subcategory | accepted |
+| Case-only difference (`"ai & technology"`) | normalized to canonical + **notice** |
+| Known alias (`Technology & AI` → `AI & Technology`) | auto-mapped |
+| Ambiguous invention (no safe 1:1 mapping) | `status="ambiguous"` — flagged, **never guessed** |
+| Unknown value | **error** with a `get_taxonomy` hint |
+
+- `_check_category_pair` in `tools/schema_validation.py` validates a
+  subcategory against its parent category — and, when only `subCategory` is
+  patched, against the union of all canonical subcategories as a fallback.
+- `_build_normalized_record` in `dataflow_mcp/core.py` auto-maps
+  category/subcategory on ingestion (logging every change) and **drops** any
+  non-canonical subCategory rather than storing an invention.
+- The v4.4 structuring prompt's CATEGORY RULES block delegates to
+  `get_taxonomy` instead of restating the list.
+
+### Contract
+
+- `get_taxonomy` is **read-only** — the taxonomy is not extensible via any
+  write tool. Adding a category/subcategory requires a code change.
+- Ambiguous values are surfaced for human review; the server never invents a
+  mapping to make a write succeed.

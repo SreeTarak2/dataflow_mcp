@@ -10,7 +10,6 @@ from dataflow_mcp.tools import contests  # noqa: F401
 from dataflow_mcp.tools import crud  # noqa: F401
 from dataflow_mcp.tools import events  # noqa: F401
 from dataflow_mcp.tools import health  # noqa: F401
-from dataflow_mcp.tools import images  # noqa: F401
 from dataflow_mcp.tools import migration  # noqa: F401
 from dataflow_mcp.tools import raw_data  # noqa: F401
 from dataflow_mcp.tools import validation  # noqa: F401
@@ -21,7 +20,6 @@ __all__ = [
     "crud",
     "events",
     "health",
-    "images",
     "migration",
     "raw_data",
     "validation",

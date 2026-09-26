@@ -248,18 +248,23 @@ class ContestDetailGenerator:
         """
         Validate the LLM-generated contest details.
 
-        Checks:
+        Warnings (block validity — 5+ fails the submission):
         - Required sections non-empty and minimum length
-        - readingTime computed honestly
-        - No first-person language
-        - No hallucinated URLs
-        - FAQ/guide/timeline structural validity if present
-        - Schema conformance
+        - Hallucinated URLs
+        - FAQ/guide structural validity if present
+        - SEO length limits
+
+        Notices (non-blocking — never count against quality_score, spec item 3):
+        - readingTime: always computed server-side and stored; the notice
+          confirms the stored value and that no resubmission is needed
+        - First-person language: style guidance with exact rewrite advice;
+          "US"/"USA" country references are excluded
 
         Returns:
-            Dict with valid (bool), warnings (list), and fixed content.
+            Dict with valid (bool), warnings, notices, and fixed content.
         """
         warnings = []
+        notices: List[str] = []
         content = parsed.get("content", {})
         seo = parsed.get("seo", {})
 
@@ -303,32 +308,67 @@ class ContestDetailGenerator:
         expected_reading_time = max(1, math.ceil(total_words / 200))
         provided_reading_time = content.get("readingTime", 0)
 
+        # Spec item 3: readingTime is NOT a quality gate. The server computes
+        # the correct value regardless of what was submitted, stores the
+        # computed value, and reports it as a non-blocking notice telling the
+        # caller exactly what to change (or that nothing is needed). It no
+        # longer counts against warning_count / quality_score.
         if not isinstance(provided_reading_time, int) or provided_reading_time < 1:
             content["readingTime"] = expected_reading_time
-            warnings.append(f"readingTime was invalid; computed as {expected_reading_time}")
-        elif provided_reading_time != expected_reading_time:
-            warnings.append(
-                f"readingTime mismatch: provided={provided_reading_time}, "
-                f"computed={expected_reading_time} ({total_words} words)"
+            notices.append(
+                f"readingTime auto-set to {expected_reading_time} (computed from "
+                f"{total_words} words) — stored correctly, no resubmission needed"
             )
+        elif provided_reading_time != expected_reading_time:
             content["readingTime"] = expected_reading_time
+            notices.append(
+                f"readingTime provided={provided_reading_time} replaced with the "
+                f"computed value {expected_reading_time} ({total_words} words) — "
+                "stored correctly, no resubmission needed"
+            )
 
         # ── First-person check ──
 
-        first_person_patterns = re.compile(r"\b(I\s|we\s|our\s|my\s|us\b)", re.IGNORECASE)
+        # Spec item 3: 'US'/'USA' are country references, not the pronoun 'us'.
+        # Whole-word 'us' matches are suppressed when they are part of (or
+        # adjacent to) a country reference. Severity: notices only — this check
+        # flags style, not correctness, so it must not gate quality_score.
+        first_person_patterns = re.compile(
+            r"\b(I\s|we\s|our\s|my\s|us\b)", re.IGNORECASE
+        )
+        country_us_pattern = re.compile(r"\bU\.?S\.?A?\b")
+
+        def _first_person_matches(text: str) -> List[str]:
+            matches = []
+            for match in first_person_patterns.finditer(text):
+                token = match.group(0).strip()
+                # Check surrounding context for a US/USA country reference —
+                # scan a small window around the match.
+                start, end = match.span()
+                window = text[max(0, start - 12) : end + 12]
+                if country_us_pattern.search(window):
+                    continue
+                matches.append(token)
+            return matches
 
         for section_key, section_val in content.items():
+            if section_key == "readingTime":
+                continue
             if isinstance(section_val, str):
-                matches = first_person_patterns.findall(section_val)
+                matches = _first_person_matches(section_val)
                 if matches:
-                    warnings.append(f"First-person language in '{section_key}': {matches[:3]}")
+                    notices.append(
+                        f"First-person language in '{section_key}': {matches[:3]} — "
+                        "rewrite in second person ('you', 'your') for a notice-free score"
+                    )
             elif isinstance(section_val, list):
                 for i, item in enumerate(section_val):
                     if isinstance(item, str):
-                        matches = first_person_patterns.findall(item)
+                        matches = _first_person_matches(item)
                         if matches:
-                            warnings.append(
-                                f"First-person language in '{section_key}[{i}]': {matches[:3]}"
+                            notices.append(
+                                f"First-person language in '{section_key}[{i}]': "
+                                f"{matches[:3]} — rewrite in second person ('you', 'your')"
                             )
 
         # ── Hallucinated URL check ──
@@ -420,6 +460,8 @@ class ContestDetailGenerator:
         return {
             "valid": is_valid,
             "warnings": warnings,
+            "notices": notices,
+            "notice_count": len(notices),
             "warning_count": len(warnings),
             "total_words": total_words,
             "content": content,

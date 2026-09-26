@@ -5,83 +5,6 @@ from typing import Any, Dict, Optional
 
 from dataflow_mcp.core import mcp, logger, check_rate_limit, update_metrics
 from tools import raw_data_processor
-from tools.data_manager import DataManager
-
-
-@mcp.tool()
-def get_raw_data_status(source: Optional[str] = None) -> dict:
-    """
-    Return a summary of what raw scraped data is available in CHRawdata.rawdata.
-
-    If `source` is provided (e.g. "contestwatchers", "opportunityDesk"), only
-    records from that scraper are considered.
-    """
-    try:
-        check_rate_limit("get_raw_data_status")
-        logger.info(f"Raw data status requested for source={source}")
-        result = raw_data_processor.get_raw_data_status(source)
-        update_metrics(result.get("success", False))
-        return result
-    except Exception as e:
-        logger.error(f"Error in get_raw_data_status: {e}")
-        update_metrics(False)
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def read_raw_collection(
-    collection_name: str,
-    filter_query: Optional[str] = None,
-    limit: int = 100,
-    skip: int = 0,
-    sort_by: Optional[str] = None,
-) -> Dict[str, Any]:
-    """
-    Read documents from the CHRawdata database (raw scraped data) with filtering and pagination.
-
-    Args:
-        collection_name: Name of the collection to read from (e.g. "rawdata")
-        filter_query: JSON string with MongoDB filter query (optional)
-        limit: Maximum number of documents to return (max 1000)
-        skip: Number of documents to skip for pagination
-        sort_by: Field name to sort by (optional)
-
-    Returns:
-        Dictionary containing the documents and metadata
-    """
-    client_id = "read_raw_collection"
-
-    if not check_rate_limit(client_id):
-        return {"success": False, "error": "Rate limit exceeded"}
-
-    try:
-        update_metrics(False)
-
-        logger.info(f"Reading from raw collection: {collection_name}")
-
-        filter_dict = None
-        if filter_query:
-            try:
-                filter_dict = json.loads(filter_query)
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON filter: {filter_query}")
-                return {"success": False, "error": "Invalid JSON in filter_query"}
-
-        result = DataManager.read_raw_data(
-            collection_name=collection_name,
-            filter_query=filter_dict,
-            limit=limit,
-            skip=skip,
-            sort_by=sort_by,
-        )
-
-        update_metrics(result.get("success", False))
-        return result
-
-    except Exception as e:
-        logger.error(f"Error in read_raw_collection: {e}")
-        update_metrics(False)
-        return {"success": False, "error": "An error occurred"}
 
 
 @mcp.tool()
@@ -89,11 +12,13 @@ def get_scraped_overview(
     source: Optional[str] = None,
 ) -> dict:
     """
-    Get a quick, actionable overview of what raw scraped records are available.
+    Get a complete, actionable overview of the raw scraped records available
+    in CHRawdata.rawdata (merges the former get_raw_data_status stats).
 
-    Use this to see what's in the pipeline before deciding which source
-    to work on. Returns counts by source, validation status breakdown,
-    total records, newest/oldest record dates, and a few sample titles.
+    Use this to see what's in the pipeline before deciding which source to
+    work on. Returns counts by source, validation status breakdown, records
+    ready for structuring, records with missing critical fields, newest
+    scrape dates, and sample titles.
 
     This is designed for AI agents (ChatGPT, Mistral, Claude) to quickly
     understand what data is available and decide what to work on next.
@@ -103,7 +28,9 @@ def get_scraped_overview(
                 (e.g. "contestwatchers", "opportunityDesk")
 
     Returns:
-        Dictionary with overview statistics and sample records
+        Dictionary with overview statistics (by_source, by_validation_status,
+        samples, ready_for_structuring, records_with_missing_fields) and
+        sample records
     """
     client_id = "get_scraped_overview"
 
@@ -172,6 +99,23 @@ def get_scraped_overview(
         }
         ready_count = raw_collection.count_documents(ready_filter)
 
+        # Records with missing critical fields (from the former
+        # get_raw_data_status — data-quality signal for scraper fixes)
+        missing_pipeline = [
+            {
+                "$match": {
+                    **match_filter,
+                    "$or": [
+                        {"title": {"$in": [None, ""]}},
+                        {"url": {"$in": [None, ""]}},
+                    ],
+                }
+            },
+            {"$count": "count"},
+        ]
+        missing_result = list(raw_collection.aggregate(missing_pipeline))
+        missing_count = missing_result[0]["count"] if missing_result else 0
+
         update_metrics(True)
         return {
             "success": True,
@@ -180,6 +124,7 @@ def get_scraped_overview(
             "source_filter": source or "all",
             "total_records": total,
             "ready_for_structuring": ready_count,
+            "records_with_missing_fields": missing_count,
             "by_source": [
                 {
                     "source": s["_id"],
@@ -206,7 +151,6 @@ def get_scraped_overview(
                 "available_pipelines": [
                     "get_records_for_structuring — fetch records + prompts for AI structuring",
                     "get_records_for_validation — claim records for web validation",
-                    "get_raw_data_status — detailed raw data stats",
                     "get_validation_status — validation pipeline progress",
                 ],
             },
@@ -219,10 +163,67 @@ def get_scraped_overview(
 
 
 @mcp.tool()
+def read_raw_collection(
+    collection_name: str,
+    filter_query: Optional[str] = None,
+    limit: int = 100,
+    skip: int = 0,
+    sort_by: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Read documents from the CHRawdata database (raw scraped data) with filtering and pagination.
+
+    Args:
+        collection_name: Name of the collection to read from (e.g. "rawdata")
+        filter_query: JSON string with MongoDB filter query (optional)
+        limit: Maximum number of documents to return (max 1000)
+        skip: Number of documents to skip for pagination
+        sort_by: Field name to sort by (optional)
+
+    Returns:
+        Dictionary containing the documents and metadata
+    """
+    client_id = "read_raw_collection"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        update_metrics(False)
+
+        logger.info(f"Reading from raw collection: {collection_name}")
+
+        filter_dict = None
+        if filter_query:
+            try:
+                filter_dict = json.loads(filter_query)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON filter: {filter_query}")
+                return {"success": False, "error": "Invalid JSON in filter_query"}
+
+        from tools.data_manager import DataManager
+
+        result = DataManager.read_raw_data(
+            collection_name=collection_name,
+            filter_query=filter_dict,
+            limit=limit,
+            skip=skip,
+            sort_by=sort_by,
+        )
+
+        update_metrics(result.get("success", False))
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in read_raw_collection: {e}")
+        update_metrics(False)
+        return {"success": False, "error": "An error occurred"}
+
+
+@mcp.tool()
 def process_raw_data(
     source: str,
     limit: int = 100,
-    auto_image: bool = False,
     dedupe_gate: bool = True,
 ) -> dict:
     """
@@ -236,8 +237,6 @@ def process_raw_data(
     Args:
         source: Scraper name (e.g. "contestwatchers", "opportunityDesk")
         limit: Max records to process per call (default 100, max 1000)
-        auto_image: If True, automatically download, convert (WebP+AVIF),
-                    and upload images to R2 after upserting contest data
         dedupe_gate: If True (default), skip records whose title matches an
                      existing live contest (normalized-title match from a
                      different source, or reworded title from the same source).
@@ -250,7 +249,6 @@ def process_raw_data(
         result = raw_data_processor.process_raw_data(
             source,
             limit,
-            auto_image=auto_image,
             require_validation=True,
             dedupe_gate=dedupe_gate,
         )

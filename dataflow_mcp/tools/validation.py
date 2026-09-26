@@ -21,6 +21,10 @@ from dataflow_mcp.core import (
     load_prompt_text,
     DEFAULT_COLLECTION,
     PROMPT_VALIDATION,
+    PROMPT_BACKFILL,
+    PROMPT_CONTEST_STRUCTURING,
+    PROMPT_CONTEST_DETAILS,
+    PROMPT_EVENTS,
 )
 from tools import web_validator
 
@@ -539,36 +543,150 @@ def get_records_for_contest_validation(
         return {"success": False, "error": str(e)}
 
 
-@mcp.tool()
-def get_validation_prompt(
-    record_type: str = "raw",
-) -> dict:
-    """
-    Preview the validation prompt without claiming any records.
+# ────────────────────────────────────────────────────────────────────────
+# Discoverable pipeline prompts (spec item 6) — supersedes the former
+# get_validation_prompt tool (call get_workflow_prompt("validation"))
+# ────────────────────────────────────────────────────────────────────────
 
-    Use this to see the instructions that will be sent to the chatbot
-    before starting the validation workflow.
+
+WORKFLOW_PROMPTS = {
+    "structuring": {
+        "file": PROMPT_CONTEST_STRUCTURING,
+        "pipeline_stage": "get_records_for_structuring → submit_structured_records",
+        "purpose": (
+            "Structure raw scraped records into the normalized Contests schema "
+            "(v4.4: canonical enums, edition lock, tiered fees)."
+        ),
+    },
+    "validation": {
+        "file": PROMPT_VALIDATION,
+        "pipeline_stage": "get_records_for_validation → submit_raw_validation",
+        "purpose": (
+            "Web-validate raw scraped records before structuring "
+            "(canonical enums, identity lock, evidence rules)."
+        ),
+    },
+    "detail_generation": {
+        "file": PROMPT_CONTEST_DETAILS,
+        "pipeline_stage": (
+            "get_contests_for_detail_generation → submit_contest_details"
+        ),
+        "purpose": (
+            "Generate the contest detail page content (whyJoin, benefits, FAQ…) "
+            "with quality validation."
+        ),
+    },
+    "full_generation": {
+        "file": PROMPT_CONTEST_STRUCTURING,
+        "extra_files": [PROMPT_CONTEST_DETAILS],
+        "pipeline_stage": "get_records_for_full_generation → submit_full_generation",
+        "purpose": (
+            "One-pass raw → published: structuring AND detail generation in a "
+            "single AI round-trip (both prompts)."
+        ),
+    },
+    "backfill": {
+        "file": PROMPT_BACKFILL,
+        "pipeline_stage": "get_prompted_contests → apply_migration_patch / bulk_apply_migrations",
+        "purpose": (
+            "Diff-based patches that migrate older records to the current schema."
+        ),
+    },
+    "events": {
+        "file": PROMPT_EVENTS,
+        "pipeline_stage": "get_records_for_events → submit_structured_events",
+        "purpose": "Structure raw scraped records into the Events collection schema.",
+    },
+}
+
+
+@mcp.tool()
+def get_workflow_prompt(pipeline_stage: str = "") -> dict:
+    """
+    Get the full pipeline prompt for a workflow stage WITHOUT claiming records
+    (spec item 6).
+
+    The pipeline prompts (structuring, validation, detail generation,
+    backfill, events) carry the complete field-by-field checklist and all
+    server-side rules. They are normally embedded in get_records_for_*
+    responses — but any agent that enters mid-workflow through raw CRUD never
+    sees them. Call this tool FIRST whenever you are about to patch or create
+    contest records with read_collection/update_document, so you follow the
+    same rules the designed pipeline enforces:
+
+      structuring | validation | detail_generation | full_generation |
+      backfill | events
+
+    Call with NO argument (or an unknown name) to list the available stages.
+
+    ROUTING RULE for agents: when patching existing contest records, prefer
+    the get_records_for_* pipeline tools over raw read_collection — the
+    pipeline tools bundle these prompts plus server-side normalization. When
+    you correct a scraped field, pair the patch with flag_contest_discrepancy
+    so validation reports and DB state stay reconciled.
 
     Args:
-        record_type: "raw" for raw data validation prompt,
-                     "contest" for contest validation prompt
+        pipeline_stage: One of the stage names above; empty lists them.
 
     Returns:
-        The full validation prompt text
+        Dictionary with prompt_text, usage, and the pipeline stage description
     """
     try:
-        check_rate_limit("get_validation_prompt")
+        check_rate_limit("get_workflow_prompt")
 
-        prompt_text = load_prompt_text(PROMPT_VALIDATION)
+        stage = (pipeline_stage or "").strip().lower()
+        if not stage or stage not in WORKFLOW_PROMPTS:
+            update_metrics(True)
+            return {
+                "success": bool(stage == ""),
+                "error": None if stage == "" else f"Unknown pipeline stage '{pipeline_stage}'",
+                "available_stages": sorted(WORKFLOW_PROMPTS.keys()),
+                "stages": {
+                    name: {"purpose": meta["purpose"], "pipeline_stage": meta["pipeline_stage"]}
+                    for name, meta in WORKFLOW_PROMPTS.items()
+                },
+                "hint": "Call again with pipeline_stage set to one of the available stages.",
+            }
+
+        meta = WORKFLOW_PROMPTS[stage]
+        prompt_text = load_prompt_text(meta["file"])
+        extra_texts = {
+            extra: load_prompt_text(extra) for extra in meta.get("extra_files", [])
+        }
 
         update_metrics(True)
         return {
             "success": True,
-            "record_type": record_type,
-            "validation_prompt": prompt_text,
+            "pipeline_stage": stage,
+            "prompt_name": meta["file"],
+            "prompt_text": prompt_text,
+            **(
+                {
+                    "extra_prompt_names": list(extra_texts.keys()),
+                    "extra_prompt_texts": extra_texts,
+                    "note": (
+                        "full_generation requires BOTH prompts — combine the "
+                        "structuring schema with the detail-generation rules."
+                    ),
+                }
+                if extra_texts
+                else {}
+            ),
+            "purpose": meta["purpose"],
+            "designed_pipeline": meta["pipeline_stage"],
+            "usage": (
+                "Follow the prompt's schema and rules exactly. When patching "
+                "existing records, prefer get_records_for_* over raw "
+                "read_collection; pair field corrections with "
+                "flag_contest_discrepancy."
+            ),
         }
 
+    except FileNotFoundError as e:
+        logger.error(f"Prompt file error: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
     except Exception as e:
-        logger.error(f"Error in get_validation_prompt: {e}")
+        logger.error(f"Error in get_workflow_prompt: {e}")
         update_metrics(False)
         return {"success": False, "error": str(e)}

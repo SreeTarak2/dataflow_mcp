@@ -24,6 +24,7 @@ from dataflow_mcp.core import (
     _json_safe,
     _build_normalized_record,
 )
+from tools.schema_validation import split_violations, summarize_violations, validate_contest_document
 from tools.contest_detail_generator import ContestDetailGenerator
 from tools.dedup_gate import build_title_index, find_near_duplicates, normalize_title
 
@@ -98,14 +99,14 @@ def get_records_for_structuring(
 ) -> dict:
     """
     Fetch raw scraped records + the structuring prompt
-    (contest-structuring-v4.0.txt, v4.0 schema) so a chatbot can structure
+    (contest-structuring-v4.4-upgraded.txt (canonical file; older versions aliased), v4.0 schema) so a chatbot can structure
     them into the normalized Contests format.
 
     The chatbot should:
       1. Read the prompt_text for schema and rules
       2. For each record, use its URL (or title) to search the web and find
          the actual contest page
-      3. Extract fields following the v4.0 schema
+      3. Extract fields following the current structuring schema (v4.4)
       4. Return a JSON array of structured records via submit_structured_records
 
     Args:
@@ -167,7 +168,7 @@ def get_records_for_structuring(
             "prompt_name": PROMPT_CONTEST_STRUCTURING,
             "prompt_text": prompt_text,
             "usage": {
-                "purpose": "Send each record to your LLM with the prompt_text. The LLM should use web search to find the official contest page, then extract fields following the v4.0 schema.",
+                "purpose": "Send each record to your LLM with the prompt_text. The LLM should use web search to find the official contest page, then extract fields following the current structuring schema (v4.4).",
                 "expected_output": "A JSON array of structured contest objects. Submit via submit_structured_records.",
             },
         }
@@ -188,7 +189,7 @@ def submit_structured_records(
     dedupe_gate: bool = True,
 ) -> dict:
     """
-    Submit structured contest records (following the contest-structuring-v4.0.txt
+    Submit structured contest records (following the contest-structuring-v4.4-upgraded.txt (canonical file; older versions aliased)
     schema) produced by a chatbot. Validates required fields and upserts into
     the Contests collection.
 
@@ -201,7 +202,7 @@ def submit_structured_records(
 
     Args:
         records_json: JSON string — either a single object or an array of
-                      structured contest objects following the v4.0 schema
+                      structured contest objects following the current structuring schema (v4.4)
         dedupe_gate: If True (default), block records that duplicate an
                      existing live contest by normalized title. Set False to
                      force-insert (e.g. intentional re-ingest).
@@ -264,6 +265,24 @@ def submit_structured_records(
             source_name = (
                 source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
             )
+
+            # ── Write-time schema validation (spec item 1) ──
+            # Off-enum values ("amateur", "onsite", "EU", …) are rejected per
+            # record with the exact fix listed — the record is NOT stored.
+            violations = validate_contest_document(record)
+            errors, notices = split_violations(violations)
+            if errors:
+                skipped += 1
+                error_details.append(
+                    f"Schema validation failed for '{title}': "
+                    + " | ".join(
+                        f"{e.field}: {e.value!r} — {e.reason}"
+                        + (f" (expected: {e.expected})" if e.expected else "")
+                        for e in errors[:5]
+                    )
+                    + f" [{len(notices)} notice(s) also found]"
+                )
+                continue
 
             normalized = _build_normalized_record(record, source_name, now_iso)
 
@@ -374,7 +393,7 @@ def get_records_for_full_generation(
     require_validated: bool = False,
 ) -> dict:
     """
-    Fetch raw scraped records + BOTH prompts (contest-structuring-v4.0.txt +
+    Fetch raw scraped records + BOTH prompts (contest-structuring-v4.4-upgraded.txt (canonical file; older versions aliased) +
     contest-details-v1.1-upgraded.txt) so a chatbot can structure AND generate contest
     details in one pass.
 
@@ -383,7 +402,7 @@ def get_records_for_full_generation(
       1. Read BOTH prompt texts (structuring schema + detail generation rules)
       2. For each record, use its URL (or title) to search the web and find
          the actual contest page
-      3. Extract structured fields following the v4.0 schema
+      3. Extract structured fields following the current structuring schema (v4.4)
       4. Research and generate contest details following contest-details-v1.1-upgraded.txt
       5. Return both via submit_full_generation
 
@@ -452,7 +471,7 @@ def get_records_for_full_generation(
             "usage": {
                 "purpose": (
                     "Send each record to your LLM with BOTH prompts above. "
-                    "First structure the record using contest-structuring-v4.0.txt schema, "
+                    "First structure the record using contest-structuring-v4.4-upgraded.txt (canonical file; older versions aliased) schema, "
                     "then use web search to research and generate contest details "
                     "following contest-details-v1.1-upgraded.txt. "
                     "Submit both as a combined result via submit_full_generation."
@@ -486,7 +505,7 @@ def submit_full_generation(
 
     Use this after get_records_for_full_generation. The JSON must contain an
     'items' array, where each item has:
-      - record: Structured contest data following the v4.0 schema
+      - record: Structured contest data following the current structuring schema (v4.4)
       - details: Contest details following contest-details-v1.1-upgraded.txt schema
 
     This tool:
@@ -581,6 +600,24 @@ def submit_full_generation(
             source_name = (
                 source_obj.get("name", "") if isinstance(source_obj, dict) else str(source_obj)
             )
+
+            # ── Write-time schema validation (spec item 1) ──
+            violations = validate_contest_document(record)
+            errors, notices = split_violations(violations)
+            if errors:
+                item_result["error"] = "Schema validation failed"
+                item_result["validation"] = summarize_violations(violations)
+                error_details.append(
+                    f"Item {idx}: schema validation failed for '{title}': "
+                    + " | ".join(
+                        f"{e.field}: {e.value!r} — {e.reason}"
+                        + (f" (expected: {e.expected})" if e.expected else "")
+                        for e in errors[:5]
+                    )
+                )
+                total_errors += 1
+                structured_results.append(item_result)
+                continue
 
             normalized = _build_normalized_record(record, source_name, now_iso)
 
@@ -1049,6 +1086,8 @@ def submit_contest_details(
                 "valid": validation.get("valid", False),
                 "warning_count": validation["warning_count"],
                 "warnings": validation["warnings"],
+                "notice_count": validation.get("notice_count", 0),
+                "notices": validation.get("notices", []),
                 "total_words": validation["total_words"],
             },
         }

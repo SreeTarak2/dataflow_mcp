@@ -323,6 +323,7 @@ def flag_contest_discrepancy(
     discrepancies_json: str,
     flagged_by: str = "",
     source: str = "ai_detail_generation",
+    resolution: str = "",
 ) -> dict:
     """
     Flag a factual discrepancy found in CONTEST DATA during AI research.
@@ -332,25 +333,31 @@ def flag_contest_discrepancy(
     differs from what's stored), it can call this tool to save the finding
     to the flagged_discrepancies collection for human review.
 
+    PART OF THE DOCUMENTED PATCH FLOW (spec item 8): when you correct a
+    scraped field — via apply_migration_patch or update_document — ALSO call
+    this tool with the scraped value vs. official value and the source URL.
+    Patch + flag keeps validation reports and DB state reconciled: future
+    validation runs see a settled discrepancy with a paper trail instead of
+    re-litigating a field that was already fixed.
+
+    Structured evidence shape (aliases accepted for compatibility):
+      field        — the dotted field path that was wrong
+      currentValue — what the DB had (alias: scrapedValue)
+      observedValue— what the official source says (alias: officialValue)
+      sourceUrl    — where the official value was read
+      resolution   — what was done ("patched", "flag_only", …)
+
     This tool does NOT modify the Contests collection — it only records
-    the finding. A human should review and resolve via the appropriate
-    pipeline (apply_migration_patch, etc.).
+    the finding.
 
     Args:
         contest_id: The MongoDB ObjectId of the contest with the issue
-        discrepancies_json: JSON string — array of discrepancy objects.
-            Each object: {
-              "field": "prize.totalUSD",
-              "currentValue": 50000,
-              "observedValue": 10000,
-              "sourceUrl": "https://...",
-              "confidence": 0.95,
-              "notes": "Official page clearly states $10,000"
-            }
+        discrepancies_json: JSON string — array of discrepancy objects (see shape above)
         flagged_by: Identifier for the chatbot/AI that found it
                      (e.g. "claude-1", "chatgpt-mistral")
         source: Pipeline stage that detected it
-                (e.g. "ai_detail_generation", "ai_validation")
+                (e.g. "ai_detail_generation", "ai_validation", "ai_patching")
+        resolution: Optional overall resolution note (e.g. "patched via apply_migration_patch")
 
     Returns:
         Dictionary with flag_id and summary
@@ -377,6 +384,20 @@ def flag_contest_discrepancy(
         if not discrepancies:
             return {"success": False, "error": "discrepancies array is empty"}
 
+        # Normalize evidence aliases (spec item 8): scrapedValue→currentValue,
+        # officialValue→observedValue so both vocabularies are first-class.
+        normalized_discrepancies = []
+        for d in discrepancies:
+            if not isinstance(d, dict):
+                normalized_discrepancies.append(d)
+                continue
+            entry = dict(d)
+            if "currentValue" not in entry and "scrapedValue" in entry:
+                entry["currentValue"] = entry.pop("scrapedValue")
+            if "observedValue" not in entry and "officialValue" in entry:
+                entry["observedValue"] = entry.pop("officialValue")
+            normalized_discrepancies.append(entry)
+
         # Connect to raw DB and get/create the flagged_discrepancies collection
         raw_db = get_raw_db()
         flagged_collection = raw_db[FLAGGED_COLLECTION]
@@ -389,7 +410,8 @@ def flag_contest_discrepancy(
             "detectedAt": now,
             "source": source,
             "status": "pending",
-            "discrepancies": discrepancies,
+            "discrepancies": normalized_discrepancies,
+            "resolution": resolution or None,
             "reviewedBy": None,
             "reviewedAt": None,
             "reviewNotes": None,
@@ -410,10 +432,398 @@ def flag_contest_discrepancy(
             "contest_id": contest_id,
             "discrepancy_count": len(discrepancies),
             "status": "pending",
-            "message": "Discrepancy flagged for human review. The Contests collection has NOT been modified.",
+            "message": (
+                "Discrepancy flagged for human review. The Contests collection has NOT "
+                "been modified. If you also patched this field, the flag records the "
+                "paper trail (scraped vs. official) for future validation runs."
+            ),
         }
 
     except Exception as e:
         logger.error(f"Error in flag_contest_discrepancy: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+# ────────────────────────────────────────────────────────────────────────
+# Server-side batch audit (spec item 7)
+# ────────────────────────────────────────────────────────────────────────
+
+
+AUDIT_FIELD_CHECKS: Dict[str, str] = {
+    "entry.fee.amount": "entryFee",
+    "entry.isFree": "entryFee",
+    "entry.feeConfidence": "entryFee",
+    "location.scope": "location",
+    "location.display": "location",
+    "audience.mode": "mode",
+    "audience.skillLevels": "skillLevels",
+    "audience.eligibilityLabel": "eligibility",
+    "participationGeography.scope": "geography",
+    "timeline.submissionDeadlineUTC": "deadline",
+}
+
+DEFAULT_AUDIT_FIELDS = [
+    "entry.fee.amount",
+    "entry.isFree",
+    "entry.feeConfidence",
+    "location.scope",
+    "location.display",
+    "audience.mode",
+    "audience.skillLevels",
+    "audience.eligibilityLabel",
+    "participationGeography.scope",
+    "timeline.submissionDeadlineUTC",
+]
+
+
+def _audit_one(doc: Dict[str, Any], fields: List[str]) -> Dict[str, Any]:
+    """Check one document for missing (None/absent) audited fields."""
+
+    def get_path(d: Any, path: str) -> Any:
+        current = d
+        for part in path.split("."):
+            if not isinstance(current, dict):
+                return None
+            current = current.get(part)
+        return current
+
+    missing: List[str] = []
+    empty: List[str] = []
+    for field in fields:
+        value = get_path(doc, field)
+        if value is None:
+            missing.append(field)
+        elif isinstance(value, list) and not value:
+            empty.append(field)
+        elif isinstance(value, str) and not value.strip():
+            empty.append(field)
+    return {"missing": missing, "empty": empty}
+
+
+@mcp.tool()
+def audit_records(
+    collection_name: str = "Contests",
+    ids_json: str = "",
+    fields_json: str = "",
+    limit: int = 500,
+) -> dict:
+    """
+    Server-side post-batch audit (spec item 7): check records for missing or
+    empty critical fields in ONE call instead of N read_collection calls with
+    client-side joins.
+
+    Run this after every enrichment batch — it is cheap by design. Any field
+    reported under "missing"/"empty" needs a patch before the batch counts as
+    complete (the two "completed but had no entry-fee field at all" records
+    from the original audit were exactly this failure mode).
+
+    Args:
+        collection_name: Collection to audit (default "Contests")
+        ids_json: JSON array of document _ids to audit. Empty → whole collection.
+        fields_json: JSON array of dotted field paths to check
+                     (default: entryFee, location, audience.mode,
+                      audience.skillLevels, eligibility, geography, deadline)
+        limit: Max documents to scan when auditing the whole collection
+               (default 500, max 2000)
+
+    Returns:
+        Per-record {id, missing, empty} plus aggregate counts. Records with no
+        issues are omitted from "records" but counted in "clean".
+    """
+    client_id = "audit_records"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        from bson import ObjectId
+
+        from config.mongodb import db
+
+        collection = db[collection_name]
+        limit = min(max(int(limit), 1), 2000)
+
+        fields: List[str] = DEFAULT_AUDIT_FIELDS
+        if fields_json:
+            try:
+                parsed_fields = json.loads(fields_json)
+                if isinstance(parsed_fields, list) and parsed_fields:
+                    fields = [str(f) for f in parsed_fields]
+            except json.JSONDecodeError:
+                return {"success": False, "error": "Invalid JSON in fields_json"}
+
+        if ids_json:
+            try:
+                id_list = json.loads(ids_json)
+            except json.JSONDecodeError:
+                return {"success": False, "error": "Invalid JSON in ids_json"}
+            if not isinstance(id_list, list) or not id_list:
+                return {"success": False, "error": "ids_json must be a non-empty JSON array"}
+            try:
+                oids = [ObjectId(i) for i in id_list]
+            except Exception:
+                return {
+                    "success": False,
+                    "error": "ids_json contains an invalid ObjectId (must be 24-char hex)",
+                }
+            docs = list(collection.find({"_id": {"$in": oids}}))
+        else:
+            docs = list(collection.find({}).limit(limit))
+
+        records: List[Dict[str, Any]] = []
+        clean = 0
+        for doc in docs:
+            issues = _audit_one(doc, fields)
+            if not issues["missing"] and not issues["empty"]:
+                clean += 1
+                continue
+            records.append(
+                {
+                    "id": str(doc["_id"]),
+                    "title": doc.get("title"),
+                    **issues,
+                }
+            )
+
+        # Aggregate: which fields are most often missing (drives scraper fixes)
+        field_counts: Dict[str, int] = {}
+        for r in records:
+            for f in r["missing"]:
+                field_counts[f] = field_counts.get(f, 0) + 1
+            for f in r["empty"]:
+                field_counts[f] = field_counts.get(f, 0) + 1
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "collection": collection_name,
+            "audited": len(docs),
+            "clean": clean,
+            "with_issues": len(records),
+            "fields_checked": fields,
+            "records": records,
+            "missing_field_counts": dict(
+                sorted(field_counts.items(), key=lambda kv: kv[1], reverse=True)
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in audit_records: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+# ────────────────────────────────────────────────────────────────────────
+# Status freshness guard (spec item 11)
+# ────────────────────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+def get_stale_status_records(limit: int = 200) -> dict:
+    """
+    Find records whose stored status contradicts their own dates (spec item 11):
+    "open"/"scheduled" records whose submission deadline (or event end) has
+    already passed.
+
+    A stale "open" status is a direct user-trust failure — a user plans to
+    enter and discovers the contest closed months ago. This check requires no
+    research or judgment, only comparing two stored fields, so run it often.
+
+    Pair with refresh_stale_statuses (dry_run=true first) to fix them in one
+    call with a full audit note per record.
+
+    Args:
+        limit: Max stale records to return (default 200, max 1000)
+
+    Returns:
+        Stale records with id, title, status, deadline, and days past due
+    """
+    client_id = "get_stale_status_records"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        from config.mongodb import db
+
+        collection = db[config_module().COLLECTION_NAME]
+        limit = min(max(int(limit), 1), 1000)
+        now = datetime.now(timezone.utc)
+
+        stale_filter = {
+            "status": {"$in": ["open", "scheduled"]},
+            "$or": [
+                {
+                    "timeline.submissionDeadlineUTC": {
+                        "$type": "string",
+                        "$lt": _cutoff_iso(now),
+                    }
+                },
+                {"timeline.eventEndUTC": {"$type": "string", "$lt": _cutoff_iso(now)}},
+            ],
+        }
+
+        docs = list(collection.find(stale_filter).limit(limit))
+
+        stale = []
+        for doc in docs:
+            timeline = doc.get("timeline", {}) if isinstance(doc.get("timeline"), dict) else {}
+            deadline = timeline.get("submissionDeadlineUTC") or timeline.get("eventEndUTC")
+            days_past = _days_past(deadline, now)
+            stale.append(
+                {
+                    "id": str(doc["_id"]),
+                    "title": doc.get("title"),
+                    "status": doc.get("status"),
+                    "deadline": deadline,
+                    "days_past_due": days_past,
+                }
+            )
+
+        stale.sort(key=lambda s: s["days_past_due"] or 0, reverse=True)
+
+        update_metrics(True)
+        return {
+            "success": True,
+            "stale_count": len(stale),
+            "records": stale,
+            "message": (
+                f"{len(stale)} record(s) marked open/scheduled with a past deadline. "
+                "Run refresh_stale_statuses(dry_run=true) to preview the auto-close."
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in get_stale_status_records: {e}")
+        update_metrics(False)
+        return {"success": False, "error": str(e)}
+
+
+def config_module():
+    """Lazy accessor for the os-level env (kept as a helper for testability)."""
+    import os
+
+    class _Env:
+        COLLECTION_NAME = os.getenv("COLLECTION_NAME", "Contests")
+
+    return _Env
+
+
+def _cutoff_iso(now: datetime) -> str:
+    """ISO cutoff string for string-typed deadline comparison (lexical ISO order)."""
+    return now.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _days_past(deadline: Any, now: datetime):
+    """Days past due for an ISO deadline string (None when unparseable)."""
+    if not isinstance(deadline, str) or not deadline.strip():
+        return None
+    try:
+        raw = deadline.strip()
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = now - dt
+        return round(delta.total_seconds() / 86400, 1)
+    except Exception:
+        return None
+
+
+@mcp.tool()
+def refresh_stale_statuses(dry_run: bool = True, limit: int = 500) -> dict:
+    """
+    Auto-close records whose deadline has passed (spec item 11, action half).
+
+    Every record with status "open"/"scheduled" and a past
+    timeline.submissionDeadlineUTC / timeline.eventEndUTC flips to "closed"
+    with an audit note (statusCheckedAt, statusAutoClosed) — a human can always
+    distinguish an automated close from a researched one.
+
+    Args:
+        dry_run: When True (default), reports what WOULD change without writing.
+        limit: Max records to update per call (default 500, max 2000)
+
+    Returns:
+        Per-record results and summary counts
+    """
+    client_id = "refresh_stale_statuses"
+
+    if not check_rate_limit(client_id):
+        return {"success": False, "error": "Rate limit exceeded"}
+
+    try:
+        from config.mongodb import db
+
+        collection = db[config_module().COLLECTION_NAME]
+        limit = min(max(int(limit), 1), 2000)
+        now = datetime.now(timezone.utc)
+
+        stale_filter = {
+            "status": {"$in": ["open", "scheduled"]},
+            "$or": [
+                {"timeline.submissionDeadlineUTC": {"$type": "string", "$lt": _cutoff_iso(now)}},
+                {"timeline.eventEndUTC": {"$type": "string", "$lt": _cutoff_iso(now)}},
+            ],
+        }
+
+        docs = list(collection.find(stale_filter, {"title": 1, "timeline": 1}).limit(limit))
+
+        if dry_run:
+            preview = [
+                {
+                    "id": str(doc["_id"]),
+                    "title": doc.get("title"),
+                    "status": doc.get("status"),
+                    "deadline": (doc.get("timeline") or {}).get("submissionDeadlineUTC")
+                    or (doc.get("timeline") or {}).get("eventEndUTC"),
+                    "would_set": "closed",
+                }
+                for doc in docs
+            ]
+            update_metrics(True)
+            return {
+                "success": True,
+                "dry_run": True,
+                "would_close": len(preview),
+                "records": preview,
+                "message": "Dry run — re-run with dry_run=false to apply.",
+            }
+
+        now_iso = now.isoformat()
+        changed = 0
+        details = []
+        for doc in docs:
+            result = collection.update_one(
+                {"_id": doc["_id"], "status": {"$in": ["open", "scheduled"]}},
+                {
+                    "$set": {
+                        "status": "closed",
+                        "statusAutoClosed": True,
+                        "statusCheckedAt": now_iso,
+                    }
+                },
+            )
+            if result.modified_count:
+                changed += 1
+                details.append({"id": str(doc["_id"]), "title": doc.get("title"), "new_status": "closed"})
+
+        update_metrics(True)
+        logger.info(f"refresh_stale_statuses: auto-closed {changed} record(s)")
+        return {
+            "success": True,
+            "dry_run": False,
+            "closed": changed,
+            "records": details,
+            "message": (
+                f"Auto-closed {changed} stale record(s) with statusAutoClosed=true "
+                "audit notes."
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in refresh_stale_statuses: {e}")
         update_metrics(False)
         return {"success": False, "error": str(e)}

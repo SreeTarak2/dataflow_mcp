@@ -4,8 +4,9 @@ Raw Data Processor — MCP tool for reading scraped raw data from CHRawdata.rawd
 (cluster B).
 
 Tools exposed:
-  get_raw_data_status(source=None)  — summary of raw data by source
-  process_raw_data(source, limit, auto_image, require_validation, dedupe_gate)
+  get_scraped_overview(source=None) — full raw-data overview (by source,
+                                      validation status, missing fields)
+  process_raw_data(source, limit, require_validation, dedupe_gate)
                                   — full normalize-and-upsert pipeline
 """
 
@@ -247,7 +248,6 @@ def get_raw_data_status(source: Optional[str] = None) -> dict:
 def process_raw_data(
     source: str,
     limit: int = 100,
-    auto_image: bool = False,
     require_validation: bool = True,
     dedupe_gate: bool = True,
 ) -> dict:
@@ -265,8 +265,6 @@ def process_raw_data(
     Args:
         source: Scraper source name (e.g. "contestwatchers", "opportunityDesk")
         limit: Maximum number of raw records to process (default 100)
-        auto_image: If True, automatically download, convert (WebP+AVIF),
-                    and upload images to R2 after upserting contest data
         require_validation: If True, only process records with
                             validationStatus="validated" (default True)
         dedupe_gate: If True (default), skip records that duplicate an
@@ -339,11 +337,7 @@ def process_raw_data(
     errors = 0
     error_details = []
 
-    upserted_titles = []  # track titles for auto_image lookups
     for record in raw_records:
-        # Store title for auto_image lookup
-        record_title = record.get("title", "")
-
         # Validate
         valid, reason = _validate_record(record)
         if not valid:
@@ -363,9 +357,6 @@ def process_raw_data(
             continue
 
         title = normalized.get("title", "")
-        # Track for auto_image lookup
-        if auto_image and title:
-            upserted_titles.append(title)
 
         # ── Duplicate-title gate ──
         # Same semantics as submit_structured_records: block when another LIVE
